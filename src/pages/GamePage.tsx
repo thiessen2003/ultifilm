@@ -1,0 +1,278 @@
+import { useState, useRef } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import Navbar from '../components/Navbar'
+import VideoPlayer from '../components/VideoPlayer'
+import PlayListSidebar from '../components/PlayListSidebar'
+import NewPlayWizard from '../components/NewPlayWizard'
+import { useGame } from '../hooks/useGames'
+import { usePlays } from '../hooks/usePlays'
+import { useAnnotations } from '../hooks/useAnnotations'
+import type { Play } from '../domain/entities/Play'
+import type { PlayerPosition } from '../domain/entities/PlayerPosition'
+
+function fmt(s: number) {
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+}
+
+export default function GamePage() {
+  const { gameId } = useParams<{ gameId: string }>()
+  const navigate = useNavigate()
+
+  const { game, setGame, gameService } = useGame(gameId!)
+  const { plays, reload: reloadPlays, playService } = usePlays(gameId!)
+  const { annotations, setAnnotations, annotationService } = useAnnotations(gameId!)
+
+  const [currentTime, setCurrentTime] = useState(0)
+  const [activePlay, setActivePlay] = useState<Play | null>(null)
+  const [showAnnotations, setShowAnnotations] = useState(true)
+  const [seekTo, setSeekTo] = useState<number | undefined>(undefined)
+  const [uploading, setUploading] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
+
+  // Annotate modal state
+  const [showAnnotateModal, setShowAnnotateModal] = useState(false)
+  const [annotateText, setAnnotateText] = useState('')
+  const annotateTimestamp = useRef(0)
+
+  const videoUrl = game ? gameService.getVideoUrl(game) : null
+
+  // ── Annotate ────────────────────────────────────────────────────────────────
+  const openAnnotateModal = () => {
+    annotateTimestamp.current = currentTime
+    setAnnotateText('')
+    setShowAnnotateModal(true)
+  }
+
+  const saveAnnotation = async () => {
+    if (!annotateText.trim() || !gameId) return
+    const ann = await annotationService.createAnnotation({
+      game_id: gameId,
+      timestamp: annotateTimestamp.current,
+      text: annotateText.trim(),
+    })
+    setAnnotations(prev => [...prev, ann].sort((a, b) => a.timestamp - b.timestamp))
+    setShowAnnotateModal(false)
+  }
+
+  const deleteAnnotation = async (id: string) => {
+    await annotationService.deleteAnnotation(id)
+    setAnnotations(prev => prev.filter(a => a.id !== id))
+  }
+
+  // ── Play wizard ─────────────────────────────────────────────────────────────
+  const handleCreatePlay = async (
+    name: string,
+    positions: Omit<PlayerPosition, 'id' | 'play_id'>[],
+  ): Promise<string> => {
+    const play = await playService.createPlay({
+      game_id: gameId!,
+      name,
+      start_time: currentTime,
+      end_time: null,
+      notes: '',
+    })
+    await playService.savePositions(play.id, positions.map(p => ({ ...p, play_id: play.id })))
+    await reloadPlays()
+    return play.id
+  }
+
+  // ── Play select ─────────────────────────────────────────────────────────────
+  const handlePlaySelect = (play: Play) => {
+    setActivePlay(play)
+    setSeekTo(play.start_time)
+    setTimeout(() => setSeekTo(undefined), 300)
+  }
+
+  // ── Video upload ─────────────────────────────────────────────────────────────
+  const handleUploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !gameId) return
+    setUploading(true)
+    try {
+      const updated = await gameService.uploadVideo(gameId, file)
+      setGame(updated)
+    } catch (err) {
+      alert(`Upload failed: ${(err as Error).message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  if (!game) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gray-100">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center text-gray-500">Loading…</div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-100">
+      <Navbar />
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Sidebar */}
+        <PlayListSidebar
+          plays={plays}
+          activePlayId={activePlay?.id ?? null}
+          onSelect={handlePlaySelect}
+          onNewPlay={() => setShowWizard(true)}
+        />
+
+        {/* Main */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Title bar */}
+          <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-200 shrink-0">
+            <h1 className="font-semibold text-gray-800">{game.title}</h1>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5 text-sm">
+                <span className="text-gray-600">Annotations:</span>
+                <button
+                  onClick={() => setShowAnnotations(v => !v)}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${showAnnotations ? 'bg-red-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showAnnotations ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                </button>
+                <span className={`text-xs font-medium ${showAnnotations ? 'text-red-600' : 'text-gray-400'}`}>
+                  {showAnnotations ? 'On' : 'Off'}
+                </span>
+              </div>
+              <button
+                onClick={openAnnotateModal}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+              >
+                Annotate
+              </button>
+            </div>
+          </div>
+
+          {/* Video */}
+          <div className="bg-black shrink-0">
+            <VideoPlayer
+              src={videoUrl}
+              onTimeUpdate={setCurrentTime}
+              seekTo={seekTo}
+              markers={annotations.map(a => ({ timestamp: a.timestamp, label: a.text }))}
+              showMarkers={showAnnotations}
+              onMarkerClick={t => { setSeekTo(t); setTimeout(() => setSeekTo(undefined), 300) }}
+            />
+          </div>
+
+          {/* Upload prompt */}
+          {!game.video_path && (
+            <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center gap-3 shrink-0">
+              <span className="text-sm text-gray-600">Upload match footage:</span>
+              <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors">
+                {uploading ? 'Uploading…' : 'Choose Video'}
+                <input type="file" accept="video/*" className="hidden" onChange={handleUploadVideo} disabled={uploading} />
+              </label>
+            </div>
+          )}
+
+          {/* Play notes */}
+          {activePlay && (
+            <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-semibold text-sm text-gray-800">{activePlay.name}</span>
+                <button
+                  onClick={() => navigate(`/games/${gameId}/plays/${activePlay.id}`)}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  Edit play →
+                </button>
+              </div>
+              <p className="text-sm text-gray-600">{activePlay.notes || <span className="italic text-gray-400">No notes.</span>}</p>
+            </div>
+          )}
+
+          {/* Annotations list */}
+          <div className="flex-1 overflow-y-auto bg-white">
+            {showAnnotations && (
+              <>
+                <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                    Annotations {annotations.length > 0 && `(${annotations.length})`}
+                  </span>
+                </div>
+                {annotations.length === 0 ? (
+                  <p className="text-sm text-gray-400 px-4 py-4">
+                    No annotations yet — click <strong>Annotate</strong> while watching to add a comment at the current timestamp.
+                  </p>
+                ) : (
+                  annotations.map(ann => (
+                    <div key={ann.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 group">
+                      <button
+                        onClick={() => { setSeekTo(ann.timestamp); setTimeout(() => setSeekTo(undefined), 300) }}
+                        className="shrink-0 bg-blue-100 text-blue-700 text-xs font-mono px-2 py-0.5 rounded hover:bg-blue-200 transition-colors mt-0.5"
+                      >
+                        {fmt(ann.timestamp)}
+                      </button>
+                      <p className="text-sm text-gray-700 flex-1 leading-relaxed">{ann.text}</p>
+                      <button
+                        onClick={() => deleteAnnotation(ann.id)}
+                        className="text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all text-lg leading-none shrink-0"
+                        title="Delete annotation"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Annotate modal */}
+      {showAnnotateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="bg-blue-100 text-blue-700 text-xs font-mono px-2 py-1 rounded">
+                {fmt(annotateTimestamp.current)}
+              </span>
+              <h2 className="text-lg font-bold">Add annotation</h2>
+            </div>
+            <textarea
+              value={annotateText}
+              onChange={e => setAnnotateText(e.target.value)}
+              placeholder="What's happening at this moment?"
+              className="w-full border border-gray-300 rounded px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+              rows={3}
+              autoFocus
+              onKeyDown={e => { if (e.key === 'Enter' && e.metaKey) saveAnnotation() }}
+            />
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setShowAnnotateModal(false)} className="text-sm text-gray-500 hover:text-gray-700">Cancel</button>
+              <button
+                onClick={saveAnnotation}
+                disabled={!annotateText.trim()}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Play wizard */}
+      {showWizard && (
+        <NewPlayWizard
+          videoSrc={videoUrl}
+          currentTime={currentTime}
+          onCreate={handleCreatePlay}
+          onCreated={playId => {
+            setShowWizard(false)
+            navigate(`/games/${gameId}/plays/${playId}`)
+          }}
+          onCancel={() => setShowWizard(false)}
+        />
+      )}
+    </div>
+  )
+}

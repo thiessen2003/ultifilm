@@ -1,0 +1,11 @@
+{
+  "name": "ultifilm-tests",
+  "type": "module",
+  "scripts": {
+    "debug": "node debug.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dotenv": "^16.4.0"
+  }
+}
