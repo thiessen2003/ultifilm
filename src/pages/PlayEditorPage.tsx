@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import PlayCanvas from '../components/PlayCanvas'
+import InfoButton from '../components/InfoButton'
 import { useGame } from '../hooks/useGames'
 import { usePlays, usePlayPositions } from '../hooks/usePlays'
 import type { PlayerPosition } from '../domain/entities/PlayerPosition'
@@ -87,14 +88,32 @@ export default function PlayEditorPage() {
             Stop Editing
           </button>
 
-          <p className="text-xs text-gray-500 leading-relaxed">
-            Click a dot to select it, then drag to reposition.
-          </p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs text-gray-500 leading-relaxed">
+              Click a dot to select it, then drag to reposition.
+            </p>
+            <InfoButton
+              title="Play canvas"
+              content="This is the play diagram editor. Each dot represents a player on the field.
+
+• Click a dot to select it (yellow ring)
+• Drag a selected dot to move it
+• Use the +/− buttons to add or remove players
+• Blue = offense, Red = defense, Black = disc
+• Hit Save when done"
+            />
+          </div>
 
           <hr className="border-gray-100" />
 
           {/* Add player controls */}
-          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Players</div>
+          <div className="flex items-center gap-1.5">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Add Players</div>
+            <InfoButton
+              title="Adding players"
+              content="Use + to drop a new player dot at the center of the field, then drag it into position. Use − to remove the last placed dot of that type."
+            />
+          </div>
 
           {(['offense', 'defense', 'disc'] as Team[]).map(team => (
             <div key={team} className="flex items-center gap-1">

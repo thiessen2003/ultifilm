@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
+import InfoButton from '../components/InfoButton'
 import { useGames } from '../hooks/useGames'
 import { isMockMode } from '../infrastructure/ServiceProvider'
 
@@ -37,7 +38,19 @@ export default function HomePage() {
       <main className="flex-1 p-6 max-w-4xl mx-auto w-full">
         {/* Header row */}
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Games</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-gray-800">Games</h1>
+            <InfoButton
+              title="Games"
+              content="Each game is a match recording. Click a game to open it and watch the footage, review plays, and read annotations.
+
+To get started:
+1. Click '+ New Game' and give it a name
+2. Upload your match video
+3. Use 'Annotate' to leave timestamped comments
+4. Use '+ New Play' to mark and diagram key moments"
+            />
+          </div>
           <button
             onClick={() => setShowNew(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors"

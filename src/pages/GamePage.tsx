@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar'
 import VideoPlayer from '../components/VideoPlayer'
 import PlayListSidebar from '../components/PlayListSidebar'
 import NewPlayWizard from '../components/NewPlayWizard'
+import InfoButton from '../components/InfoButton'
 import { useGame } from '../hooks/useGames'
 import { usePlays } from '../hooks/usePlays'
 import { useAnnotations } from '../hooks/useAnnotations'
@@ -139,13 +140,23 @@ export default function GamePage() {
                 <span className={`text-xs font-medium ${showAnnotations ? 'text-red-600' : 'text-gray-400'}`}>
                   {showAnnotations ? 'On' : 'Off'}
                 </span>
+                <InfoButton
+                  title="Annotations toggle"
+                  content="Toggle the annotations overlay on or off. When on, yellow dots appear on the video scrubber at each annotated timestamp, and the annotation list is shown below the video."
+                />
               </div>
-              <button
-                onClick={openAnnotateModal}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
-              >
-                Annotate
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={openAnnotateModal}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                >
+                  Annotate
+                </button>
+                <InfoButton
+                  title="Annotate"
+                  content="Pause the video at any moment and click Annotate to save a timestamped comment. The comment is linked to that exact point in the video — click the timestamp badge later to jump back to it."
+                />
+              </div>
             </div>
           </div>
 
@@ -192,10 +203,14 @@ export default function GamePage() {
           <div className="flex-1 overflow-y-auto bg-white">
             {showAnnotations && (
               <>
-                <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
+                <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
                     Annotations {annotations.length > 0 && `(${annotations.length})`}
                   </span>
+                  <InfoButton
+                    title="Annotations list"
+                    content="Each row is a comment tied to a specific moment in the video. Click the blue timestamp badge to jump the video to that moment. Hover over a row to reveal the × delete button."
+                  />
                 </div>
                 {annotations.length === 0 ? (
                   <p className="text-sm text-gray-400 px-4 py-4">

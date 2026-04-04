@@ -1,4 +1,5 @@
 import type { Play } from '../domain/entities/Play'
+import InfoButton from './InfoButton'
 
 interface Props {
   plays: Play[]
@@ -17,7 +18,13 @@ export default function PlayListSidebar({ plays, activePlayId, onSelect, onNewPl
   return (
     <div className="w-44 shrink-0 bg-white border-r border-gray-200 flex flex-col">
       <div className="px-3 py-2 font-semibold text-sm border-b border-gray-200 bg-gray-50 flex items-center justify-between">
-        <span>Plays</span>
+        <div className="flex items-center gap-1.5">
+          <span>Plays</span>
+          <InfoButton
+            title="Plays"
+            content="Plays are key moments you've marked in the game footage. Click any play to jump to that timestamp and see its notes. Use '+ New Play' to create a new one by clicking on players in the video."
+          />
+        </div>
         <span className="text-xs text-gray-400 font-normal">{plays.length}</span>
       </div>
 
