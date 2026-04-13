@@ -126,8 +126,8 @@ To get started:
                   accept="video/*"
                   onChange={e => {
                     const file = e.target.files?.[0] ?? null
-                    if (file && file.size > 500 * 1024 * 1024) {
-                      alert('Video must be under 500 MB.')
+                    if (file && file.size > 50 * 1024 * 1024) {
+                      alert('Video must be under 50 MB.')
                       e.target.value = ''
                       return
                     }
@@ -135,7 +135,7 @@ To get started:
                   }}
                   className="w-full text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
-                <p className="text-xs text-gray-400 mt-1">Max 500 MB</p>
+                <p className="text-xs text-gray-400 mt-1">Max 50 MB</p>
               </div>
 
               <div className="flex gap-3 justify-end pt-2">

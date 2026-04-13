@@ -108,8 +108,8 @@ export default function GamePage() {
   const handleUploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !gameId) return
-    if (file.size > 500 * 1024 * 1024) {
-      alert('Video must be under 500 MB.')
+    if (file.size > 50 * 1024 * 1024) {
+      alert('Video must be under 50 MB.')
       e.target.value = ''
       return
     }
