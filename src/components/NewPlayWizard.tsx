@@ -69,10 +69,10 @@ export default function NewPlayWizard({ videoSrc, currentTime, onCreated, onCanc
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl flex flex-col overflow-hidden" style={{ maxHeight: '92vh' }}>
+      <div className="bg-white rounded-xl shadow-2xl flex flex-col overflow-hidden" style={{ width: '95vw', maxWidth: '1400px', height: '92vh' }}>
 
         {/* Header */}
-        <div className="bg-blue-600 text-white px-5 py-3 flex items-center justify-between shrink-0">
+        <div className="bg-brand-500 text-white px-5 py-3 flex items-center justify-between shrink-0">
           <div>
             {step === 'name' && <h2 className="font-bold text-lg">New Play — Name it</h2>}
             {step === 'offense' && <h2 className="font-bold text-lg">Click on offensive players <span className="text-blue-200 font-normal text-sm">(blue)</span></h2>}
@@ -198,7 +198,7 @@ export default function NewPlayWizard({ videoSrc, currentTime, onCreated, onCanc
             <button
               onClick={() => setStep('offense')}
               disabled={!name.trim()}
-              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-5 py-2 rounded text-sm font-medium"
+              className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white px-5 py-2 rounded text-sm font-medium"
             >
               Next →
             </button>
@@ -206,7 +206,7 @@ export default function NewPlayWizard({ videoSrc, currentTime, onCreated, onCanc
           {step === 'offense' && (
             <button
               onClick={() => setStep('defense')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded text-sm font-medium"
+              className="bg-brand-500 hover:bg-brand-600 text-white px-5 py-2 rounded text-sm font-medium"
             >
               Next: Add Defense →
             </button>

@@ -1,7 +1,9 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import PlayCanvas from '../components/PlayCanvas'
+import DrawingCanvas from '../components/DrawingCanvas'
+import type { DrawingCanvasHandle } from '../components/DrawingCanvas'
 import InfoButton from '../components/InfoButton'
 import { useGame } from '../hooks/useGames'
 import { usePlays, usePlayPositions } from '../hooks/usePlays'
@@ -27,11 +29,20 @@ export default function PlayEditorPage() {
   const { plays, playService } = usePlays(gameId!)
   const { positions, setPositions, playService: ps } = usePlayPositions(playId!)
 
-  const [showAnnotations, setShowAnnotations] = useState(true)
+  const [showDrawing, setShowDrawing] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  const drawingRef = useRef<DrawingCanvasHandle>(null)
+
   const play = plays.find(p => p.id === playId)
+
+  // Load existing drawing data when play is available
+  useEffect(() => {
+    if (play?.drawing_data && drawingRef.current) {
+      drawingRef.current.loadDataUrl(play.drawing_data)
+    }
+  }, [play?.id, play?.drawing_data])
 
   const handleChange = useCallback((updated: PlayerPosition[]) => {
     setPositions(updated)
@@ -64,8 +75,14 @@ export default function PlayEditorPage() {
     if (!playId) return
     setSaving(true)
     try {
-      const saved = await ps.savePositions(playId, positions.map(({ id: _id, ...rest }) => rest))
-      setPositions(saved)
+      // Save positions
+      const savedPositions = await ps.savePositions(playId, positions.map(({ id: _id, ...rest }) => rest))
+      setPositions(savedPositions)
+
+      // Save drawing data
+      const drawingData = drawingRef.current?.getDataUrl() ?? null
+      await playService.updatePlay(playId, { drawing_data: drawingData })
+
       setSaved(true)
     } catch (e) {
       alert(`Save failed: ${(e as Error).message}`)
@@ -100,6 +117,7 @@ export default function PlayEditorPage() {
 • Drag a selected dot to move it
 • Use the +/− buttons to add or remove players
 • Blue = offense, Red = defense, Black = disc
+• Use the drawing toolbar on the right to annotate
 • Hit Save when done"
             />
           </div>
@@ -134,10 +152,21 @@ export default function PlayEditorPage() {
 
           <hr className="border-gray-100" />
 
+          {/* Drawing layer toggle */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-500 flex-1">Drawing layer</span>
+            <button
+              onClick={() => setShowDrawing(v => !v)}
+              className={`w-11 h-6 rounded-full px-0.5 flex items-center transition-colors duration-200 ${showDrawing ? 'bg-brand-500' : 'bg-gray-300'}`}
+            >
+              <span className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${showDrawing ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
           <button
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white text-sm font-medium py-2 rounded transition-colors"
+            className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-sm font-medium py-2 rounded transition-colors"
           >
             {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
           </button>
@@ -150,43 +179,35 @@ export default function PlayEditorPage() {
             <span className="text-sm text-gray-500">
               {game?.title} &rsaquo; <strong className="text-gray-800">{play?.name ?? 'Play'}</strong>
             </span>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5 text-sm">
-                <span className="text-gray-600">Annotations:</span>
-                <button
-                  onClick={() => setShowAnnotations(v => !v)}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${
-                    showAnnotations ? 'bg-red-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${
-                    showAnnotations ? 'translate-x-5' : 'translate-x-0.5'
-                  }`} />
-                </button>
-                <span className={`text-xs font-medium ${showAnnotations ? 'text-red-600' : 'text-gray-400'}`}>
-                  {showAnnotations ? 'On' : 'Off'}
-                </span>
-              </div>
-              <button className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors">
-                Annotate
-              </button>
+            <div className="flex items-center gap-2">
+              <InfoButton
+                title="Drawing toolbar"
+                content="The toolbar on the right side of the canvas lets you draw on top of the play diagram.
+
+• Pick a tool (pen, marker, arrow, shapes, etc.)
+• Pick a color and stroke size
+• Use Undo (↩) / Redo (↪) to step through history
+• Toggle the drawing layer on/off with the switch in the left panel
+• Click Save to persist both dots and drawing"
+              />
             </div>
           </div>
 
           {/* Canvas */}
           <div className="flex-1 bg-gray-200 p-3 overflow-hidden">
-            <div className="w-full h-full rounded overflow-hidden shadow-inner border border-gray-300">
-              {showAnnotations ? (
-                <PlayCanvas
-                  positions={positions}
-                  onChange={handleChange}
-                  readOnly={false}
-                />
-              ) : (
-                <div className="w-full h-full bg-gray-700 flex items-center justify-center text-gray-400 text-sm">
-                  Annotations hidden
-                </div>
-              )}
+            <div className="w-full h-full rounded overflow-hidden shadow-inner border border-gray-300 relative">
+              {/* Player dot canvas always rendered underneath */}
+              <PlayCanvas
+                positions={positions}
+                onChange={handleChange}
+                readOnly={showDrawing}
+              />
+              {/* Drawing canvas overlaid on top */}
+              <DrawingCanvas
+                ref={drawingRef}
+                visible={showDrawing}
+                onStrokeEnd={() => setSaved(false)}
+              />
             </div>
           </div>
 

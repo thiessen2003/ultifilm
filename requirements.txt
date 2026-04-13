@@ -1,0 +1,169 @@
+Final Project Guide
+Each deliverable of the final project has a different due date. These due dates are staggered to give you the most possible time to work while giving teaching staff the time they need to prepare for the presentations. Due to end-of-semester logistical constraints, NO slip days, extensions, or late submissions will be permitted.
+The capstone of this semester is an interactive demo of a useful, innovative user interface that your team has developed. To show off this capstone, you will present at:
+Slideshow presentations in class on Thursday, April 23. 
+The showcase on Tuesday, April 28 (from 1:45–4 p.m., note the end time), via: 
+A poster. 
+A demo of your interface that visitors and staff will be able to use ourselves.
+This guide describes all the work that remains for your final project. Major deadlines:
+Complete the second check-in meeting with your project mentor between Monday, April 13 and Thursday, April 16 at 5 p.m. (Email them now!)
+The poster is due Sunday, April 19 at 11:59 p.m. Upload a PDF to Canvas. 
+(Note: This requires you to have enough of your UI finalized that you can provide accurate screenshots of your UI and descriptions of your UI’s functionality.)
+The slides are due Tuesday, April 21 at 11:59 p.m. Upload a Google Slides link to Canvas, and be prepared to present in class on Thursday, April 23. 
+The demo is due at the start of the showcase on Tuesday, April 28 at 1:45 p.m. Bring it to the showcase, deployed and ready-to-use on an appropriate device. 
+A brief project synopsis doc and team dynamics questionnaire are due later that day, on Tuesday, April 28 at 11:59 p.m. 
+In this guide, we describe each of these steps. Click the links above for easy navigation.
+Grading: Your grade for the final project is accumulated from its components: 10% for meeting the usefulness + innovativeness criteria overall, 50% for the demo, 20% for the presentation, 15% for the poster, and 5% for the synopsis doc. See the rubrics below for details on how your projects will be evaluated. As noted in the syllabus, we also reserve the right to adjust individual grades for severely unequal contributions to the project.
+Completing Your Interface
+Now it is time to build out your interface completely in code.
+How much of the interface do I have to build out? Just like in A3 and A4, your prototype should cover about the span of an entire narrative scenario. Someone should be able to actually use it to do what it was built to do, start to finish.
+How sophisticated does my implementation have to be? Your UI has to actually work. While you are allowed to hardcode some data/server aspects, the staff is going to actually use your UI at the showcase, and we might not follow the exact path you want us to through the interface — everything in it should still work very well.
+What level of visual polish is necessary? At minimum, it should reach a level of polish that satisfies the A4 criteria. Additionally, it should look like a real UI.  
+Can I use AI to help me build it? Same as before, you may use AI to help you write code as long as it respects the course's AI use policy. See our note on this in A5, which applies here.
+What does success look like? Successful UIs will (1) be clearly useful + innovative, (2) have a polished look and feel, and (3) work well — i.e., behave appropriately on realistic inputs. 
+Usefulness + Innovativeness Grading / Second Check-In Meeting
+Context. We will assess, mainly through the demo, whether your project is useful + innovative. This is worth 10% of the total project grade. You will receive full (10/10) credit if we have no concerns about the usefulness + innovativeness of your UI. You will receive zero (0/10) or half (5/10) credit if we have concerns, depending on their severity. 
+Check-in. Arrange a second (and final) check-in meeting with your project mentor to occur sometime between Monday, April 13 and Thursday, April 16 at 5 p.m. This check-in meeting is arranged mainly for your benefit, to achieve clarity on whether your project as-is satisfies the usefulness + innovativeness criteria. As a result, the more you have done before the meeting, the more you will get out of it. 
+Some logistics: 
+Don’t wait — email your mentor now to schedule this meeting.
+Meetings must be synchronous (e.g., in person, or over Zoom).
+At least two, but ideally all, team members must be present. 
+Prepare two milestones for the check-in meeting: 
+A functioning demo of your UI, to be shown live at the meeting. It is okay if the UI is not yet visually polished. It is okay if there are bugs here and there, or if not every pathway is supported yet. But it should actually be functioning, from end to end. The goal is to give us a clear picture of what it is that your final UI does. 
+A video of your UI demo (screen capture recording with narration), to be emailed to your mentor + Jessica prior to the meeting. The video should be easily understandable to someone who does not have prior context about your UI.
+The meeting and milestones are not graded per se; the purpose is to facilitate feedback. In particular, we will share with you by Friday, April 17 morning one of three outcomes:
+Guaranteed credit: We guarantee that if the demo you bring to the showcase maintains the overall functionality you have shown, you will receive full credit on usefulness + innovativeness. 
+Guaranteed credit if specific concerns are addressed: We guarantee that if the demo maintains the overall functionality you have shown, and you address one or more specific concerns, you will receive full credit on usefulness + innovativeness. (If you do not address the concerns, you will almost certainly lose credit.)
+No guaranteed credit: We cannot make any guarantees on the score you will receive, as we have not seen enough to be confident in where your UI is. 
+Your mentor may have additional feedback about other aspects of your design, but the “10% for meeting the usefulness + innovativeness criteria overall” criteria is the only portion of the rubric where you will potentially receive a guarantee. 
+Deliverable: Poster 
+Dates to remember: 
+Submit a PDF of the poster to Canvas by Sunday, April 19 at 11:59 p.m. 
+It will be displayed during the showcase on Tuesday, April 28. 
+Prepare a poster that conveys the ideas behind your UI design in a visually compelling way. Focus on visuals, not text. Examples of strong posters from past semesters are here. You can make the poster using software of your choosing; Canva is often a good choice. 
+The slides will be graded according to this rubric (out of 15 points total):
+Baseline
+4 pts:
+➛ A poster is presented.
+➛ There is at least one screenshot of the UI.
+➛ It is 30" × 40" (horizontal or vertical is okay).
+➛ The background is white (required by our poster printer).
+Content
+3 pts:
+➛ The poster title is the name of the UI.
+➛ There are screenshots showing the most significant (important, innovative) parts of the UI. Multiple screenshots might be needed.
+➛ The poster clearly describes what/who the UI is for.
+2 pts:
+➛ Text on the poster expresses the ideas behind the interaction design — at a broad level, how one interacts with the UI, and why this interaction design is suitable to the users.
+1 pt: 
+➛ The features promised in the poster are present in the demo, and the UI screenshots have minimal differences with the demo. 
+Visual polish
+1 pt: 
+➛ No tiny text anywhere (typically, at least 32pt).
+1.5 pts: 
+➛ The poster has a visual theme (consistent palette / typography). This may or may not be the same visual theme as the UI's.
+➛ All screenshots and images are high-resolution; no pixelation.
+➛ No walls of text (generally, blocks of text >100 words long).
+➛ No irrelevant or garish AI-generated/stock graphics.
+1.5 pts: 
+➛ The poster is visually polished (per A4 criteria). Common issues are those that make parts of the poster hard to read, including at a distance, or which impose a chaotic or illogical visual flow.
+A+ 
+1 pt: Grader’s discretion for truly exemplary work.
+
+With this and other rubrics, you need to satisfy all criteria in the category (row) to receive the points for that category. For example, if your poster does not contain screenshots showing the most significant parts of the UI, you are likely to lose the full three points. 
+Submitting your poster. Posters must be submitted on Canvas by the deadline above so that we can get them printed out for you. You will submit your poster as a PDF. It must follow these criteria for us to print it out for you:
+The dimensions should be 30" x 40" (inches), either horizontal or vertical.
+Include the orientation of your poster (“horizontal” or “vertical” — we need to provide this information to the poster printer) and the name of your project in the PDF file name. For example, “[VERTICAL] Planta.pdf”.
+All fonts must be embedded in the PDF, so that when we open the poster on our computers, it appears the same as on yours.
+Deliverable: Slideshow Presentation
+Dates to remember: 
+Submit a Google Slides link to Canvas by Tuesday, April 21 at 11:59 p.m. 
+Present in class on Thursday, April 23. 
+Show your project to the class in a three-minute Google Slides presentation. The purpose of this presentation is for you to make clear that you came up with a useful, innovative, polished user interface solution. This is the main way the full teaching staff — and your classmates — will get to know what your team achieved.
+You must use Google Slides, not a different presentation platform. Custom fonts may or may not render correctly on our computers; we can check for you with sufficient advance notice via private Ed post, but generally we recommend that you stick with built-in fonts. 
+We expect presentations will:
+Be engaging: Catch and keep the audience's attention.
+Make the problem clear: It should be clear why a new user interface was needed. This might require storytelling about prospective users or use of data that conveys the presence, scale, and importance of the problem. If other products address the same problem, you may need to convey why they are insufficient.
+Put the best foot forward for your UI: Describe your UI. Show what it is like to use it, either through high resolution screenshots or videos of key steps in the UI. It must be clear that after using the UI, your user will have accomplished their goal.
+Conclude: End on a strong note. This could include evidence that you have collected from users (if any) about the appropriateness of the design, or a restatement about how the UI solves its target problem. 
+Slides must be visually polished, and presentations must be well-rehearsed. Examples of strong presentations from past semesters are here.
+The slideshow presentation will be graded according to this rubric (out of 20 points total):
+Baseline
+8 pts: 
+➛ Give a presentation. 
+➛ Show at least one screen from your UI.
+Problem description 
+
+
+2 pts:
+➛ Clearly describe the problem you are solving.
+➛ Effectively make the case that your problem is important.
+UI description
+2 pts:
+➛ Show the most important steps/screens of your interface. 
+➛ Show the UI with realistic example data.
+2 pts: 
+➛ Effectively make the case that your UI solves the problem. This will require choosing good examples and showing enough of the UI to clearly show a user would reach a good outcome via your UI.
+Visual polish
+2 pts:
+➛ All content on your slides is large enough to be legible. This includes the information within UI screens. 
+➛ Avoid permissions issues with any embedded UI videos. 
+2 pts: 
+➛ Have visually polished slides (per A4 criteria). Common issues include too much text, bad contrast or unpleasant color schemes, and images that are irrelevant or garish (e.g., DALL-E images). 
+Presentation requirements
+1 pt:
+(Note: issues with this category are likely to cause issues with other categories too, and so may result in further loss of points.)
+➛ Finish your talk within three minutes. 
+➛ Be audible for the full presentation.
+A+ 
+1 pt: Grader’s discretion for truly exemplary work.
+
+Deliverable: Demo
+Dates to remember: 
+Present the demo at the showcase on Thursday, April 28. 
+Get your UI all set up so that others can try it out. The instructional staff will be circulating to try out your UI. Your classmates and other visitors will be able to try it too. To understand the general expectations for how to develop a great UI, see above. Examples of strong demos from past semesters in video form are here. 
+This demo is how we grade your UI. As the most significant output from your project, it accounts for half of your final project grade. We will grade it at the showcase, right after we play around with your UI. We will use this rubric (out of 50 points total):
+Baseline
+18 pts:
+➛ Show us the UI.
+Functionality
+5 pts: 
+➛ We can use the UI ourselves (rather than just being shown it).
+➛ The UI supports about a full "narrative scenario."
+5 pts: 
+➛ The UI can be freely used by the staff (we don’t have to follow a prescribed set of actions, and instead can figure it out ourselves)
+➛ with realistic user data 
+➛ without encountering bugs (e.g., crashes, unexpected outcomes) that fatally prevent us from completing the task
+➛ with good responsiveness — no unreasonably long wait times
+➛ with any AI components functioning well — they give sufficiently quick and high quality results to support interaction 
+5 pts: 
+➛ The UI can be freely used without encountering any bugs.
+Look and feel
+5 pts:
+➛ No major usability issues that stand in the way of us using your interface. Examples include missing or confusing signifiers, lack of backtracking support, and a chaotic or unintuitive visual flow. 
+5 pts: 
+➛ High degree of visual polish. There are no deviations from A4 criteria anywhere within the interface — we will be less forgiving of small issues than when grading A4. Your UI looks and feels like a real UI (that a reputable developer would produce).
+Demo requirements
+5 pts:
+(Note: issues with this category are likely to cause issues with other categories too, and so may result in further loss of points.)
+➛ It takes you less than one minute to brief us on the purpose of your interface and how to get started using it. This helps us have enough time to visit all groups.
+➛ The UI is on the correct device (e.g., no mobile apps on laptops).
+➛ If the demo requires multiple devices (e.g., for a collaborative app), there are multiple devices at the demo, and they interact with each other appropriately.
+A+ 
+2 pts: Grader’s discretion for truly exemplary work.
+
+Auxiliary Submission: Synopsis Doc
+Dates to remember: 
+Submit to Canvas by Tuesday, April 28 at 11:59 p.m. 
+In addition to what you submit for the presentations, we also require you to submit a Google Doc providing a synopsis of the end results of your project. This document accounts for 5% of your final project grade, graded for completion. This is a relatively small amount, though if you do not submit it, we may lack the information we need to give the other components of your final project the full credit they deserve.
+This synopsis document must include links to...
+A recorded video demonstration of your user interface. It must be high-resolution. There must be narration of the actions taken. Include everything you want us to see if we were to use this video to grade your UI.
+The poster PDF that you presented.
+The presentation slides that you presented.
+The GitHub repository that contains your UI code. Remember that your code must contain attributions for AI-generated code and code reused from other sources.
+Please check that the links in your PDF are clickable and publicly accessible. 
+These links expedite our review of your project, and give us an opportunity to re-review your work as needed after the presentations.
+Auxiliary Submission: Team Dynamics Questionnaire
+Dates to remember: 
+Submit to Canvas by Tuesday, April 28 at 11:59 p.m.
+Finally, help the teaching staff better understand the interactions within your team by completing an additional questionnaire on Canvas. Please ensure that every individual on your team completes this questionnaire. (This questionnaire will be released a bit later.)

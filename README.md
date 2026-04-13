@@ -13,7 +13,6 @@ The interface and persistence layer for this project were designed and implement
 - Debug **Supabase Row Level Security** policy issues during integration
 - Add the **tutorial info buttons** throughout the interface
 
-> Claude Code is available at [claude.ai/code](https://claude.ai/code)
 
 ---
 

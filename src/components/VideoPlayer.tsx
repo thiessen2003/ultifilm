@@ -57,7 +57,7 @@ export default function VideoPlayer({ src, onTimeUpdate, seekTo, markers = [], s
         <video
           ref={ref}
           src={src}
-          className="w-full aspect-video bg-black"
+          className="w-full max-h-[65vh] object-contain bg-black"
           onTimeUpdate={() => {
             const t = ref.current?.currentTime ?? 0
             setCurrent(t)
@@ -67,7 +67,7 @@ export default function VideoPlayer({ src, onTimeUpdate, seekTo, markers = [], s
           onEnded={() => setPlaying(false)}
         />
       ) : (
-        <div className="w-full aspect-video bg-gray-800 flex items-center justify-center text-gray-400 text-sm">
+        <div className="w-full h-48 bg-gray-800 flex items-center justify-center text-gray-400 text-sm">
           No video uploaded
         </div>
       )}

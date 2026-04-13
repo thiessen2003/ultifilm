@@ -72,6 +72,14 @@ CREATE TRIGGER games_updated_at
 -- CREATE POLICY "Public video access" ON storage.objects FOR SELECT USING (bucket_id = 'videos');
 
 -- ------------------------------------------------------------
+-- drawing_data column on plays (added for DrawingCanvas)
+-- Stores the base64 PNG overlay drawn on the play diagram.
+-- Run this if the plays table already exists:
+--   ALTER TABLE plays ADD COLUMN IF NOT EXISTS drawing_data TEXT;
+-- ------------------------------------------------------------
+ALTER TABLE plays ADD COLUMN IF NOT EXISTS drawing_data TEXT;
+
+-- ------------------------------------------------------------
 -- annotations  (added in refactor)
 -- A timestamped text comment on a game video.
 -- ------------------------------------------------------------

@@ -4,6 +4,7 @@ import Navbar from '../components/Navbar'
 import VideoPlayer from '../components/VideoPlayer'
 import PlayListSidebar from '../components/PlayListSidebar'
 import NewPlayWizard from '../components/NewPlayWizard'
+import PlayerTracker from '../components/PlayerTracker'
 import InfoButton from '../components/InfoButton'
 import { useGame } from '../hooks/useGames'
 import { usePlays } from '../hooks/usePlays'
@@ -31,6 +32,23 @@ export default function GamePage() {
   const [seekTo, setSeekTo] = useState<number | undefined>(undefined)
   const [uploading, setUploading] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
+  const [showTracker, setShowTracker] = useState(false)
+
+  // Inline play notes editing
+  const [editingNotes, setEditingNotes] = useState(false)
+  const [notesText, setNotesText] = useState('')
+
+  const startEditingNotes = (play: Play) => {
+    setNotesText(play.notes)
+    setEditingNotes(true)
+  }
+
+  const saveNotes = async () => {
+    if (!activePlay) return
+    const updated = await playService.updatePlay(activePlay.id, { notes: notesText })
+    setActivePlay(updated)
+    setEditingNotes(false)
+  }
 
   // Annotate modal state
   const [showAnnotateModal, setShowAnnotateModal] = useState(false)
@@ -90,6 +108,11 @@ export default function GamePage() {
   const handleUploadVideo = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !gameId) return
+    if (file.size > 500 * 1024 * 1024) {
+      alert('Video must be under 500 MB.')
+      e.target.value = ''
+      return
+    }
     setUploading(true)
     try {
       const updated = await gameService.uploadVideo(gameId, file)
@@ -103,7 +126,7 @@ export default function GamePage() {
 
   if (!game) {
     return (
-      <div className="min-h-screen flex flex-col bg-gray-100">
+      <div className="h-screen flex flex-col bg-gray-100">
         <Navbar />
         <div className="flex-1 flex items-center justify-center text-gray-500">Loading…</div>
       </div>
@@ -111,7 +134,7 @@ export default function GamePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-100">
+    <div className="h-screen flex flex-col bg-gray-100 overflow-hidden">
       <Navbar />
 
       <div className="flex flex-1 overflow-hidden">
@@ -133,13 +156,10 @@ export default function GamePage() {
                 <span className="text-gray-600">Annotations:</span>
                 <button
                   onClick={() => setShowAnnotations(v => !v)}
-                  className={`w-10 h-5 rounded-full transition-colors relative ${showAnnotations ? 'bg-red-500' : 'bg-gray-300'}`}
+                  className={`w-11 h-6 rounded-full px-0.5 flex items-center transition-colors duration-200 ${showAnnotations ? 'bg-red-500' : 'bg-gray-300'}`}
                 >
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showAnnotations ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  <span className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${showAnnotations ? 'translate-x-5' : 'translate-x-0'}`} />
                 </button>
-                <span className={`text-xs font-medium ${showAnnotations ? 'text-red-600' : 'text-gray-400'}`}>
-                  {showAnnotations ? 'On' : 'Off'}
-                </span>
                 <InfoButton
                   title="Annotations toggle"
                   content="Toggle the annotations overlay on or off. When on, yellow dots appear on the video scrubber at each annotated timestamp, and the annotation list is shown below the video."
@@ -148,7 +168,7 @@ export default function GamePage() {
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={openAnnotateModal}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
+                  className="bg-brand-500 hover:bg-brand-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors"
                 >
                   Annotate
                 </button>
@@ -176,26 +196,75 @@ export default function GamePage() {
           {!game.video_path && (
             <div className="bg-gray-50 border-b border-gray-200 px-4 py-2 flex items-center gap-3 shrink-0">
               <span className="text-sm text-gray-600">Upload match footage:</span>
-              <label className="cursor-pointer bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors">
+              <label className="cursor-pointer bg-brand-500 hover:bg-brand-600 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors">
                 {uploading ? 'Uploading…' : 'Choose Video'}
                 <input type="file" accept="video/*" className="hidden" onChange={handleUploadVideo} disabled={uploading} />
               </label>
             </div>
           )}
 
-          {/* Play notes */}
+          {/* Active play panel */}
           {activePlay && (
             <div className="bg-white border-b border-gray-200 px-4 py-3 shrink-0">
-              <div className="flex items-center justify-between mb-1">
+              {/* Play name + action buttons */}
+              <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold text-sm text-gray-800">{activePlay.name}</span>
-                <button
-                  onClick={() => navigate(`/games/${gameId}/plays/${activePlay.id}`)}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  Edit play →
-                </button>
+                <div className="flex items-center gap-1.5">
+                  {/* Edit notes */}
+                  <button
+                    onClick={() => editingNotes ? setEditingNotes(false) : startEditingNotes(activePlay)}
+                    title="Edit notes"
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand-500 border border-gray-200 hover:border-brand-300 px-2 py-1 rounded transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                    Notes
+                  </button>
+                  {/* Track players */}
+                  <button
+                    onClick={() => setShowTracker(true)}
+                    title="Track players"
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand-500 border border-gray-200 hover:border-brand-300 px-2 py-1 rounded transition-colors"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                    Track
+                  </button>
+                  {/* Edit diagram */}
+                  <button
+                    onClick={() => navigate(`/games/${gameId}/plays/${activePlay.id}`)}
+                    title="Edit play diagram"
+                    className="flex items-center gap-1 text-xs bg-brand-500 hover:bg-brand-600 text-white px-2.5 py-1 rounded transition-colors font-medium"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    Edit Diagram
+                  </button>
+                </div>
               </div>
-              <p className="text-sm text-gray-600">{activePlay.notes || <span className="italic text-gray-400">No notes.</span>}</p>
+
+              {/* Notes section */}
+              {editingNotes ? (
+                <div className="flex flex-col gap-1.5">
+                  <textarea
+                    value={notesText}
+                    onChange={e => setNotesText(e.target.value)}
+                    className="w-full text-sm border border-gray-300 rounded px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    rows={3}
+                    autoFocus
+                    placeholder="Add notes about this play…"
+                  />
+                  <div className="flex gap-2 justify-end">
+                    <button onClick={() => setEditingNotes(false)} className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1">Cancel</button>
+                    <button onClick={saveNotes} className="text-xs bg-brand-500 hover:bg-brand-600 text-white px-3 py-1 rounded font-medium">Save</button>
+                  </div>
+                </div>
+              ) : (
+                <p
+                  className="text-sm text-gray-600 cursor-text hover:bg-gray-50 rounded px-1 -mx-1 py-0.5 transition-colors"
+                  onClick={() => startEditingNotes(activePlay)}
+                  title="Click to edit notes"
+                >
+                  {activePlay.notes || <span className="italic text-gray-400">No notes — click to add</span>}
+                </p>
+              )}
             </div>
           )}
 
@@ -221,7 +290,7 @@ export default function GamePage() {
                     <div key={ann.id} className="flex items-start gap-3 px-4 py-3 border-b border-gray-100 hover:bg-gray-50 group">
                       <button
                         onClick={() => { setSeekTo(ann.timestamp); setTimeout(() => setSeekTo(undefined), 300) }}
-                        className="shrink-0 bg-blue-100 text-blue-700 text-xs font-mono px-2 py-0.5 rounded hover:bg-blue-200 transition-colors mt-0.5"
+                        className="shrink-0 bg-brand-50 text-brand-600 text-xs font-mono px-2 py-0.5 rounded hover:bg-blue-200 transition-colors mt-0.5"
                       >
                         {fmt(ann.timestamp)}
                       </button>
@@ -247,7 +316,7 @@ export default function GamePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-center gap-2 mb-4">
-              <span className="bg-blue-100 text-blue-700 text-xs font-mono px-2 py-1 rounded">
+              <span className="bg-brand-50 text-brand-600 text-xs font-mono px-2 py-1 rounded">
                 {fmt(annotateTimestamp.current)}
               </span>
               <h2 className="text-lg font-bold">Add annotation</h2>
@@ -266,7 +335,7 @@ export default function GamePage() {
               <button
                 onClick={saveAnnotation}
                 disabled={!annotateText.trim()}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
+                className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white px-4 py-2 rounded text-sm font-medium"
               >
                 Save
               </button>
@@ -286,6 +355,16 @@ export default function GamePage() {
             navigate(`/games/${gameId}/plays/${playId}`)
           }}
           onCancel={() => setShowWizard(false)}
+        />
+      )}
+
+      {/* Player tracker */}
+      {showTracker && activePlay && (
+        <PlayerTracker
+          videoSrc={videoUrl}
+          playId={activePlay.id}
+          playName={activePlay.name}
+          onClose={() => setShowTracker(false)}
         />
       )}
     </div>

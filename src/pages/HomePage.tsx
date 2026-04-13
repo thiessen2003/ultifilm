@@ -53,7 +53,7 @@ To get started:
           </div>
           <button
             onClick={() => setShowNew(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-medium transition-colors"
+            className="bg-brand-500 hover:bg-brand-600 text-white px-4 py-2 rounded font-medium transition-colors"
           >
             + New Game
           </button>
@@ -124,9 +124,18 @@ To get started:
                 <input
                   type="file"
                   accept="video/*"
-                  onChange={e => setVideoFile(e.target.files?.[0] ?? null)}
+                  onChange={e => {
+                    const file = e.target.files?.[0] ?? null
+                    if (file && file.size > 500 * 1024 * 1024) {
+                      alert('Video must be under 500 MB.')
+                      e.target.value = ''
+                      return
+                    }
+                    setVideoFile(file)
+                  }}
                   className="w-full text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
+                <p className="text-xs text-gray-400 mt-1">Max 500 MB</p>
               </div>
 
               <div className="flex gap-3 justify-end pt-2">
@@ -140,7 +149,7 @@ To get started:
                 <button
                   type="submit"
                   disabled={creating}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-5 py-2 rounded text-sm font-medium transition-colors"
+                  className="bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white px-5 py-2 rounded text-sm font-medium transition-colors"
                 >
                   {creating ? 'Creating…' : 'Create'}
                 </button>

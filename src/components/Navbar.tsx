@@ -4,10 +4,10 @@ export default function Navbar({ title = 'Ultifilm' }: { title?: string }) {
   const navigate = useNavigate()
 
   return (
-    <nav className="bg-blue-600 text-white flex items-center px-4 h-12 shrink-0 relative">
+    <nav className="bg-brand-500 text-white flex items-center px-4 h-12 shrink-0 relative">
       <button
         onClick={() => navigate('/')}
-        className="absolute left-4 p-1 rounded hover:bg-blue-700 transition-colors"
+        className="absolute left-4 p-1 rounded hover:bg-brand-600 transition-colors"
         aria-label="Home"
       >
         {/* house icon */}
