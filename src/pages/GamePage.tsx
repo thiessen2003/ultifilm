@@ -4,7 +4,6 @@ import Navbar from '../components/Navbar'
 import VideoPlayer from '../components/VideoPlayer'
 import PlayListSidebar from '../components/PlayListSidebar'
 import NewPlayWizard from '../components/NewPlayWizard'
-import PlayerTracker from '../components/PlayerTracker'
 import InfoButton from '../components/InfoButton'
 import { useGame } from '../hooks/useGames'
 import { usePlays } from '../hooks/usePlays'
@@ -32,7 +31,6 @@ export default function GamePage() {
   const [seekTo, setSeekTo] = useState<number | undefined>(undefined)
   const [uploading, setUploading] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
-  const [showTracker, setShowTracker] = useState(false)
 
   // Inline play notes editing
   const [editingNotes, setEditingNotes] = useState(false)
@@ -231,23 +229,23 @@ export default function GamePage() {
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                     Notes
                   </button>
-                  {/* Track players */}
-                  <button
-                    onClick={() => setShowTracker(true)}
-                    title="Track players"
-                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand-500 border border-gray-200 hover:border-brand-300 px-2 py-1 rounded transition-colors"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-                    Track
-                  </button>
-                  {/* Edit diagram */}
+                  {/* Edit play — opens Draw tab */}
                   <button
                     onClick={() => navigate(`/games/${gameId}/plays/${activePlay.id}`)}
                     title="Edit play diagram"
-                    className="flex items-center gap-1 text-xs bg-brand-500 hover:bg-brand-600 text-white px-2.5 py-1 rounded transition-colors font-medium"
+                    className="flex items-center gap-1 text-xs text-gray-500 hover:text-brand-500 border border-gray-200 hover:border-brand-300 px-2 py-1 rounded transition-colors"
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
-                    Edit Diagram
+                    Draw
+                  </button>
+                  {/* Track players — opens Track tab */}
+                  <button
+                    onClick={() => navigate(`/games/${gameId}/plays/${activePlay.id}?tab=track`)}
+                    title="Track players"
+                    className="flex items-center gap-1 text-xs bg-brand-500 hover:bg-brand-600 text-white px-2.5 py-1 rounded transition-colors font-medium"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+                    Track
                   </button>
                 </div>
               </div>
@@ -362,28 +360,15 @@ export default function GamePage() {
           videoSrc={videoUrl}
           currentTime={currentTime}
           onCreate={handleCreatePlay}
-          onCreated={_playId => {
+          onCreated={playId => {
             setShowWizard(false)
-            const play = createdPlayRef.current
-            if (play) {
-              setActivePlay(play)
-              setShowTracker(true)
-              createdPlayRef.current = null
-            }
+            createdPlayRef.current = null
+            navigate(`/games/${gameId}/plays/${playId}?tab=track`)
           }}
           onCancel={() => setShowWizard(false)}
         />
       )}
 
-      {/* Player tracker */}
-      {showTracker && activePlay && (
-        <PlayerTracker
-          videoSrc={videoUrl}
-          playId={activePlay.id}
-          playName={activePlay.name}
-          onClose={() => setShowTracker(false)}
-        />
-      )}
     </div>
   )
 }

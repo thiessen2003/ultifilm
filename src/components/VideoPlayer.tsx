@@ -57,7 +57,7 @@ export default function VideoPlayer({ src, onTimeUpdate, seekTo, markers = [], s
         <video
           ref={ref}
           src={src}
-          className="w-full max-h-[42vh] object-contain bg-black"
+          className="w-full max-h-[50vh] object-contain bg-black"
           onTimeUpdate={() => {
             const t = ref.current?.currentTime ?? 0
             setCurrent(t)
