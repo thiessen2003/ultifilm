@@ -17,6 +17,7 @@ export interface DrawingCanvasHandle {
 interface Props {
   visible: boolean
   onStrokeEnd?: () => void   // called after every completed stroke so parent can save
+  interactive?: boolean      // when false, canvas is shown but pointer events pass through
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ const SHAPE_TOOLS: Tool[] = ['arrow','circle','rect','triangle']
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
-  ({ visible, onStrokeEnd }, ref) => {
+  ({ visible, onStrokeEnd, interactive = true }, ref) => {
     const canvasRef   = useRef<HTMLCanvasElement>(null)
     const wrapperRef  = useRef<HTMLDivElement>(null)
     const eraserRef   = useRef<HTMLDivElement>(null)
@@ -388,7 +389,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
 
     // ── Render ─────────────────────────────────────────────────────────
     return (
-      <div ref={wrapperRef} className="absolute inset-0 flex">
+      <div ref={wrapperRef} className="absolute inset-0 flex" style={interactive ? undefined : { pointerEvents: 'none' }}>
         {/* Canvas */}
         <canvas
           ref={canvasRef}
@@ -399,6 +400,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
                   : activeTool === 'text'   ? 'text'
                   : 'crosshair',
             zIndex: 10,
+            pointerEvents: interactive === false ? 'none' : 'auto',
           }}
         />
 
@@ -417,8 +419,8 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
           />
         )}
 
-        {/* Right toolbar */}
-        <div className="absolute right-0 top-0 bottom-0 w-14 bg-white border-l border-gray-200 flex flex-col items-center py-2 gap-1 overflow-y-auto z-20">
+        {/* Right toolbar — only shown when interactive (draw mode) */}
+        {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-14 bg-white border-l border-gray-200 flex flex-col items-center py-2 gap-1 overflow-y-auto z-20">
           {/* Tools */}
           {TOOLS.map(t => (
             <button
@@ -484,7 +486,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
           </button>
-        </div>
+        </div>}
       </div>
     )
   }

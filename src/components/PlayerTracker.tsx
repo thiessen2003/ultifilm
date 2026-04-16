@@ -448,19 +448,6 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose, emb
         </div>
       )}
 
-      {/* Embedded top bar — view toggle only */}
-      {embedded && (
-        <div className="bg-gray-900 border-b border-gray-800 px-4 h-9 flex items-center gap-3 shrink-0">
-          {activePlayer && view === 'video' && (
-            <span className="flex items-center gap-1.5 bg-gray-700 px-2.5 py-0.5 rounded-full text-xs font-medium text-white animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-              Tracking {activePlayer.name}
-            </span>
-          )}
-          <ViewToggle view={view} setView={setView} activePlayer={activePlayer} />
-          <span className="text-gray-600 text-xs ml-auto">Space = play/pause</span>
-        </div>
-      )}
 
       {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
@@ -666,6 +653,42 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose, emb
                 </div>
               )
             })}
+          </div>
+
+          {/* Export JSON */}
+          <div className="border-t border-gray-800 p-2 shrink-0">
+            <button
+              onClick={() => {
+                const data = {
+                  playId,
+                  playName,
+                  exportedAt: new Date().toISOString(),
+                  players: players.map(p => ({
+                    name: p.name,
+                    team: p.team,
+                    keyframes: [...p.keyframes]
+                      .sort((a, b) => a.timestamp_ms - b.timestamp_ms)
+                      .map(kf => ({
+                        timestamp_ms: kf.timestamp_ms,
+                        x_pct: Math.round(kf.x_pct * 1000) / 1000,
+                        y_pct: Math.round(kf.y_pct * 1000) / 1000,
+                      })),
+                  })),
+                }
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                const url  = URL.createObjectURL(blob)
+                const a    = document.createElement('a')
+                a.href = url; a.download = `${playName.replace(/\s+/g, '_')}_tracking.json`
+                a.click(); URL.revokeObjectURL(url)
+              }}
+              disabled={players.length === 0}
+              className="w-full bg-gray-800 hover:bg-gray-700 disabled:opacity-40 text-white text-xs font-medium py-1.5 px-3 rounded flex items-center justify-center gap-2 transition-colors"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+              </svg>
+              Export JSON
+            </button>
           </div>
 
           {/* Keyframe list */}

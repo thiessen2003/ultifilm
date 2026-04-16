@@ -48,7 +48,6 @@ export default function GamePage() {
     setEditingNotes(false)
   }
 
-  // Ref to hold the most recently created play so onCreated can open the tracker
   const createdPlayRef = useRef<Play | null>(null)
 
   // Annotate modal state
@@ -154,6 +153,7 @@ export default function GamePage() {
           onSelect={handlePlaySelect}
           onNewPlay={() => setShowWizard(true)}
           onDelete={deletePlay}
+          onEdit={playId => navigate(`/games/${gameId}/plays/${playId}`)}
         />
 
         {/* Main */}
@@ -237,15 +237,6 @@ export default function GamePage() {
                   >
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                     Draw
-                  </button>
-                  {/* Track players — opens Track tab */}
-                  <button
-                    onClick={() => navigate(`/games/${gameId}/plays/${activePlay.id}?tab=track`)}
-                    title="Track players"
-                    className="flex items-center gap-1 text-xs bg-brand-500 hover:bg-brand-600 text-white px-2.5 py-1 rounded transition-colors font-medium"
-                  >
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path strokeLinecap="round" d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
-                    Track
                   </button>
                 </div>
               </div>
