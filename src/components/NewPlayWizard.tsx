@@ -26,8 +26,20 @@ export default function NewPlayWizard({ videoSrc, currentTime, onCreated, onCanc
   const [name, setName] = useState('')
   const [positions, setPositions] = useState<Array<{ id: string; team: Team; x: number; y: number; label: string }>>([])
   const [saving, setSaving] = useState(false)
+  const [frameUrl, setFrameUrl] = useState<string | null>(null)
   const videoRef = useRef<HTMLVideoElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
+
+  // Capture a single frame from the video at currentTime
+  const captureFrame = () => {
+    const v = videoRef.current
+    if (!v) return
+    const canvas = document.createElement('canvas')
+    canvas.width  = v.videoWidth  || 1280
+    canvas.height = v.videoHeight || 720
+    canvas.getContext('2d')!.drawImage(v, 0, 0)
+    setFrameUrl(canvas.toDataURL('image/jpeg', 0.9))
+  }
 
   const onVideoLoad = () => {
     if (videoRef.current) videoRef.current.currentTime = currentTime
@@ -139,14 +151,32 @@ export default function NewPlayWizard({ videoSrc, currentTime, onCreated, onCanc
             {/* Video + overlay */}
             <div className="flex-1 relative bg-black min-h-0 overflow-hidden">
               {videoSrc ? (
-                <video
-                  ref={videoRef}
-                  src={videoSrc}
-                  className="w-full h-full object-contain"
-                  muted
-                  playsInline
-                  onLoadedMetadata={onVideoLoad}
-                />
+                <>
+                  {/* Hidden video — used only to capture a single frame */}
+                  <video
+                    ref={videoRef}
+                    src={videoSrc}
+                    className="hidden"
+                    muted
+                    playsInline
+                    preload="auto"
+                    onLoadedMetadata={onVideoLoad}
+                    onSeeked={captureFrame}
+                  />
+                  {/* Static frame screenshot */}
+                  {frameUrl ? (
+                    <img
+                      src={frameUrl}
+                      className="w-full h-full object-contain"
+                      alt="Video frame"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
+                      Loading frame…
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-gray-400 text-sm">
                   No video — positions will be placed on the play canvas instead.

@@ -467,47 +467,93 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose, emb
 
         {/* Video / Map side */}
         <div className="flex-1 flex flex-col bg-black overflow-hidden">
-          <div className="flex-1 relative overflow-hidden">
+          <div className="flex-1 relative overflow-hidden flex">
 
-            {/* Video — always mounted */}
-            <div className={`absolute inset-0 ${view === 'map' ? 'invisible' : 'visible'}`}>
-              {videoSrc ? (
-                <>
-                  <video
-                    ref={videoRef}
-                    src={videoSrc}
-                    className="w-full h-full object-contain"
-                    preload="metadata"
-                  />
-                  <TrackingCanvas
-                    players={players}
-                    activePlayerId={activePlayerId}
-                    currentTimeMs={currentTimeMs}
-                    onPlace={placeKeyframe}
-                  />
-                  {activePlayer && (
-                    <div
-                      className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full text-xs font-medium text-white pointer-events-none"
-                      style={{ backgroundColor: TEAM_COLOR[activePlayer.team] + 'cc' }}
-                    >
-                      Click anywhere to place {activePlayer.name}
-                    </div>
+            {/* When embedded: video and field map side by side */}
+            {embedded ? (
+              <>
+                {/* Video half */}
+                <div className="flex-1 relative overflow-hidden bg-black">
+                  {videoSrc ? (
+                    <>
+                      <video
+                        ref={videoRef}
+                        src={videoSrc}
+                        className="w-full h-full object-contain"
+                        preload="metadata"
+                      />
+                      <TrackingCanvas
+                        players={players}
+                        activePlayerId={activePlayerId}
+                        currentTimeMs={currentTimeMs}
+                        onPlace={placeKeyframe}
+                      />
+                      {activePlayer && (
+                        <div
+                          className="absolute top-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded-full text-xs font-medium text-white pointer-events-none"
+                          style={{ backgroundColor: TEAM_COLOR[activePlayer.team] + 'cc' }}
+                        >
+                          Click to place {activePlayer.name}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">No video</div>
                   )}
-                </>
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">
-                  No video loaded
+                  <div className="absolute top-2 left-2 text-xs text-white/50 pointer-events-none">Video</div>
                 </div>
-              )}
-            </div>
 
-            {view === 'map' && (
-              <FieldMap
-                players={players}
-                currentTimeMs={currentTimeMs}
-                durationMs={durationMs}
-                onSeek={seekTo}
-              />
+                {/* Field map half */}
+                <div className="flex-1 relative overflow-hidden border-l border-gray-800">
+                  <FieldMap
+                    players={players}
+                    currentTimeMs={currentTimeMs}
+                    durationMs={durationMs}
+                    onSeek={seekTo}
+                  />
+                  <div className="absolute top-2 left-2 text-xs text-white/50 pointer-events-none">Field Map</div>
+                </div>
+              </>
+            ) : (
+              /* Non-embedded (modal): toggle between video and map */
+              <>
+                <div className={`absolute inset-0 ${view === 'map' ? 'invisible' : 'visible'}`}>
+                  {videoSrc ? (
+                    <>
+                      <video
+                        ref={videoRef}
+                        src={videoSrc}
+                        className="w-full h-full object-contain"
+                        preload="metadata"
+                      />
+                      <TrackingCanvas
+                        players={players}
+                        activePlayerId={activePlayerId}
+                        currentTimeMs={currentTimeMs}
+                        onPlace={placeKeyframe}
+                      />
+                      {activePlayer && (
+                        <div
+                          className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full text-xs font-medium text-white pointer-events-none"
+                          style={{ backgroundColor: TEAM_COLOR[activePlayer.team] + 'cc' }}
+                        >
+                          Click anywhere to place {activePlayer.name}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-500 text-sm">No video loaded</div>
+                  )}
+                </div>
+                {view === 'map' && (
+                  <FieldMap
+                    players={players}
+                    currentTimeMs={currentTimeMs}
+                    durationMs={durationMs}
+                    onSeek={seekTo}
+                  />
+                )}
+              </>
             )}
           </div>
 

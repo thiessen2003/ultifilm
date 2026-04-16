@@ -3,10 +3,10 @@ import type { Play, CreatePlayInput, UpdatePlayInput } from '../../domain/entiti
 import type { PlayerPosition, CreatePlayerPositionInput, UpdatePlayerPositionInput } from '../../domain/entities/PlayerPosition'
 
 const SEED_PLAYS: Play[] = [
-  { id: 'play-1', game_id: 'game-1', name: 'Super Swarm',  start_time: 315, end_time: 331, notes: 'Notice how the players are positioned in relation to the disc. There should only be about 10 yards of space between handlers and cutters.', drawing_data: null, created_at: new Date().toISOString() },
-  { id: 'play-2', game_id: 'game-1', name: 'Infinity',     start_time: 612, end_time: 634, notes: 'Watch the cutter cycle through the stack.', drawing_data: null, created_at: new Date().toISOString() },
-  { id: 'play-3', game_id: 'game-1', name: 'Wall',         start_time: 754, end_time: 769, notes: 'Good example of handler resets under pressure.', drawing_data: null, created_at: new Date().toISOString() },
-  { id: 'play-4', game_id: 'game-2', name: 'Barnyard: Step 1', start_time: 60, end_time: 80, notes: 'Poppy picks up the frisbee and immediately finds Grace cutting under to get the play action started.', drawing_data: null, created_at: new Date().toISOString() },
+  { id: 'play-1', game_id: 'game-1', name: 'Super Swarm',  start_time: 315, end_time: 331, notes: 'Notice how the players are positioned in relation to the disc. There should only be about 10 yards of space between handlers and cutters.', drawing_data: null, video_drawing_data: null, created_at: new Date().toISOString() },
+  { id: 'play-2', game_id: 'game-1', name: 'Infinity',     start_time: 612, end_time: 634, notes: 'Watch the cutter cycle through the stack.', drawing_data: null, video_drawing_data: null, created_at: new Date().toISOString() },
+  { id: 'play-3', game_id: 'game-1', name: 'Wall',         start_time: 754, end_time: 769, notes: 'Good example of handler resets under pressure.', drawing_data: null, video_drawing_data: null, created_at: new Date().toISOString() },
+  { id: 'play-4', game_id: 'game-2', name: 'Barnyard: Step 1', start_time: 60, end_time: 80, notes: 'Poppy picks up the frisbee and immediately finds Grace cutting under to get the play action started.', drawing_data: null, video_drawing_data: null, created_at: new Date().toISOString() },
 ]
 
 const SEED_POSITIONS: PlayerPosition[] = [
@@ -54,7 +54,7 @@ export class MockPlayRepository implements IPlayRepository {
   }
 
   async create(input: CreatePlayInput): Promise<Play> {
-    const play: Play = { drawing_data: null, ...input, id: `play-${Date.now()}`, created_at: new Date().toISOString() }
+    const play: Play = { drawing_data: null, video_drawing_data: null, ...input, id: `play-${Date.now()}`, created_at: new Date().toISOString() }
     this.plays.push(play)
     return play
   }

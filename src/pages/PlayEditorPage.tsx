@@ -48,12 +48,12 @@ export default function PlayEditorPage() {
   const play = plays.find(p => p.id === playId)
   const videoUrl = game ? gameService.getVideoUrl(game) : null
 
-  // Load saved drawing into the field canvas
+  // Load saved drawings when play data arrives
   useEffect(() => {
-    if (play?.drawing_data && fieldDrawRef.current) {
-      fieldDrawRef.current.loadDataUrl(play.drawing_data)
-    }
-  }, [play?.id, play?.drawing_data])
+    if (!play) return
+    if (play.drawing_data)       fieldDrawRef.current?.loadDataUrl(play.drawing_data)
+    if (play.video_drawing_data) videoDrawRef.current?.loadDataUrl(play.video_drawing_data)
+  }, [play?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = useCallback((updated: PlayerPosition[]) => {
     setPositions(updated)
@@ -88,8 +88,10 @@ export default function PlayEditorPage() {
     try {
       const savedPositions = await ps.savePositions(playId, positions.map(({ id: _id, ...rest }) => rest))
       setPositions(savedPositions)
-      const drawingData = fieldDrawRef.current?.getDataUrl() ?? null
-      await playService.updatePlay(playId, { drawing_data: drawingData })
+      await playService.updatePlay(playId, {
+        drawing_data:       fieldDrawRef.current?.getDataUrl() ?? null,
+        video_drawing_data: videoDrawRef.current?.getDataUrl() ?? null,
+      })
       setSaved(true)
     } catch (e) {
       alert(`Save failed: ${(e as Error).message}`)
@@ -205,26 +207,18 @@ export default function PlayEditorPage() {
             )}
 
             {drawSurface === 'video' && (
-              <>
-                <p className="text-xs text-gray-500 leading-relaxed">
-                  Draw annotations directly on the video. Use the toolbar on the right side of the video.
-                </p>
-                <p className="text-xs text-amber-600 leading-relaxed">
-                  Video drawings are not saved — switch to Field to save diagram annotations.
-                </p>
-              </>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Draw annotations directly on the video. Use the toolbar on the right side of the video.
+              </p>
             )}
 
-            {/* Save button — field mode only */}
-            {drawSurface === 'field' && (
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-sm font-medium py-2 rounded transition-colors mt-auto"
-              >
-                {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
-              </button>
-            )}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="w-full bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-sm font-medium py-2 rounded transition-colors mt-auto"
+            >
+              {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
+            </button>
           </div>
 
           {/* Canvas / video area */}

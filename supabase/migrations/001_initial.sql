@@ -76,8 +76,10 @@ CREATE TRIGGER games_updated_at
 -- Stores the base64 PNG overlay drawn on the play diagram.
 -- Run this if the plays table already exists:
 --   ALTER TABLE plays ADD COLUMN IF NOT EXISTS drawing_data TEXT;
+--   ALTER TABLE plays ADD COLUMN IF NOT EXISTS video_drawing_data TEXT;
 -- ------------------------------------------------------------
 ALTER TABLE plays ADD COLUMN IF NOT EXISTS drawing_data TEXT;
+ALTER TABLE plays ADD COLUMN IF NOT EXISTS video_drawing_data TEXT;
 
 -- ------------------------------------------------------------
 -- annotations  (added in refactor)
