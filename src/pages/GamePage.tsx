@@ -50,6 +50,9 @@ export default function GamePage() {
     setEditingNotes(false)
   }
 
+  // Ref to hold the most recently created play so onCreated can open the tracker
+  const createdPlayRef = useRef<Play | null>(null)
+
   // Annotate modal state
   const [showAnnotateModal, setShowAnnotateModal] = useState(false)
   const [annotateText, setAnnotateText] = useState('')
@@ -93,8 +96,16 @@ export default function GamePage() {
       notes: '',
     })
     await playService.savePositions(play.id, positions.map(p => ({ ...p, play_id: play.id })))
+    createdPlayRef.current = play
     await reloadPlays()
     return play.id
+  }
+
+  const deletePlay = async (playId: string) => {
+    if (!confirm('Delete this play?')) return
+    await playService.deletePlay(playId)
+    if (activePlay?.id === playId) setActivePlay(null)
+    await reloadPlays()
   }
 
   // ── Play select ─────────────────────────────────────────────────────────────
@@ -144,6 +155,7 @@ export default function GamePage() {
           activePlayId={activePlay?.id ?? null}
           onSelect={handlePlaySelect}
           onNewPlay={() => setShowWizard(true)}
+          onDelete={deletePlay}
         />
 
         {/* Main */}
@@ -269,7 +281,7 @@ export default function GamePage() {
           )}
 
           {/* Annotations list */}
-          <div className="flex-1 overflow-y-auto bg-white">
+          <div className="flex-1 overflow-y-auto bg-white min-h-[140px]">
             {showAnnotations && (
               <>
                 <div className="px-4 py-2 border-b border-gray-100 bg-gray-50 flex items-center gap-2">
@@ -350,9 +362,14 @@ export default function GamePage() {
           videoSrc={videoUrl}
           currentTime={currentTime}
           onCreate={handleCreatePlay}
-          onCreated={playId => {
+          onCreated={_playId => {
             setShowWizard(false)
-            navigate(`/games/${gameId}/plays/${playId}`)
+            const play = createdPlayRef.current
+            if (play) {
+              setActivePlay(play)
+              setShowTracker(true)
+              createdPlayRef.current = null
+            }
           }}
           onCancel={() => setShowWizard(false)}
         />

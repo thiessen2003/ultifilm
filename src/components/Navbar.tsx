@@ -15,7 +15,12 @@ export default function Navbar({ title = 'Ultifilm' }: { title?: string }) {
           <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
         </svg>
       </button>
-      <span className="mx-auto text-xl font-semibold tracking-wide">{title}</span>
+      <button
+        onClick={() => navigate('/')}
+        className="mx-auto text-xl font-semibold tracking-wide hover:text-brand-100 transition-colors"
+      >
+        {title}
+      </button>
     </nav>
   )
 }

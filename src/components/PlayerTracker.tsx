@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Keyframe {
@@ -31,7 +31,6 @@ function fmt(ms: number) {
   return `${String(m).padStart(2, '0')}:${(s % 60).toFixed(1).padStart(4, '0')}`
 }
 
-// Linear interpolation of position between two keyframes
 function interpolate(kfs: Keyframe[], timeMs: number): { x: number; y: number } | null {
   if (kfs.length === 0) return null
   const sorted = [...kfs].sort((a, b) => a.timestamp_ms - b.timestamp_ms)
@@ -50,7 +49,7 @@ function interpolate(kfs: Keyframe[], timeMs: number): { x: number; y: number } 
   return null
 }
 
-// ── Field map ─────────────────────────────────────────────────────────────────
+// ── Field map (horizontal — end zones on left/right) ──────────────────────────
 function FieldMap({
   players,
   currentTimeMs,
@@ -72,48 +71,49 @@ function FieldMap({
     const W = canvas.width
     const H = canvas.height
 
-    // ── Field background ──
+    // ── Field background — landscape orientation ──
     ctx.fillStyle = '#1a5c2a'
     ctx.fillRect(0, 0, W, H)
 
-    // Alternating strips
+    // Alternating vertical strips (left → right)
     for (let i = 0; i < 10; i++) {
       if (i % 2 === 1) {
         ctx.fillStyle = '#1e6630'
-        ctx.fillRect(0, i * H / 10, W, H / 10)
+        ctx.fillRect(i * W / 10, 0, W / 10, H)
       }
     }
 
-    // End zones (top + bottom 18%)
-    const ez = H * 0.18
-    ctx.fillStyle = 'rgba(20,85,40,0.5)'
-    ctx.fillRect(0, 0, W, ez)
-    ctx.fillRect(0, H - ez, W, ez)
+    // End zones (left 18% and right 18%)
+    const ez = W * 0.18
+    ctx.fillStyle = 'rgba(20,85,40,0.6)'
+    ctx.fillRect(0, 0, ez, H)
+    ctx.fillRect(W - ez, 0, ez, H)
 
     // Boundary
     ctx.strokeStyle = 'rgba(255,255,255,0.85)'
     ctx.lineWidth = 2
     ctx.strokeRect(3, 3, W - 6, H - 6)
 
-    // End zone lines
+    // End zone lines (vertical)
     ctx.beginPath()
-    ctx.moveTo(3, ez);   ctx.lineTo(W - 3, ez)
-    ctx.moveTo(3, H - ez); ctx.lineTo(W - 3, H - ez)
+    ctx.moveTo(ez, 3);     ctx.lineTo(ez, H - 3)
+    ctx.moveTo(W - ez, 3); ctx.lineTo(W - ez, H - 3)
     ctx.stroke()
 
-    // Yard lines
+    // Yard lines (vertical, in playing area)
     ctx.strokeStyle = 'rgba(255,255,255,0.2)'
     ctx.lineWidth = 1
-    const playing = H - 2 * ez
+    const playing = W - 2 * ez
     for (let i = 1; i < 8; i++) {
-      const y = ez + playing * i / 8
-      ctx.beginPath(); ctx.moveTo(3, y); ctx.lineTo(W - 3, y); ctx.stroke()
+      const x = ez + playing * i / 8
+      ctx.beginPath(); ctx.moveTo(x, 3); ctx.lineTo(x, H - 3); ctx.stroke()
     }
+
     // Centre line slightly brighter
-    const cy = ez + playing / 2
+    const cx = ez + playing / 2
     ctx.strokeStyle = 'rgba(255,255,255,0.4)'
     ctx.lineWidth = 1.5
-    ctx.beginPath(); ctx.moveTo(3, cy); ctx.lineTo(W - 3, cy); ctx.stroke()
+    ctx.beginPath(); ctx.moveTo(cx, 3); ctx.lineTo(cx, H - 3); ctx.stroke()
 
     // ── Player paths ──
     players.forEach(player => {
@@ -121,7 +121,7 @@ function FieldMap({
       const sorted = [...player.keyframes].sort((a, b) => a.timestamp_ms - b.timestamp_ms)
       const color  = TEAM_COLOR[player.team]
 
-      // Full historical path (dashed)
+      // Full path (dashed)
       ctx.beginPath()
       sorted.forEach((kf, i) => {
         const x = kf.x_pct * W, y = kf.y_pct * H
@@ -141,19 +141,17 @@ function FieldMap({
         ctx.fill()
       })
 
-      // Current position (interpolated)
+      // Current interpolated position
       const pos = interpolate(player.keyframes, currentTimeMs)
       if (!pos) return
       const px = pos.x * W, py = pos.y * H
 
-      // Pulse ring
       ctx.beginPath()
       ctx.arc(px, py, 20, 0, Math.PI * 2)
       ctx.strokeStyle = color + '33'
       ctx.lineWidth = 6
       ctx.stroke()
 
-      // Main circle
       ctx.beginPath()
       ctx.arc(px, py, 14, 0, Math.PI * 2)
       ctx.fillStyle = color + 'dd'
@@ -162,7 +160,6 @@ function FieldMap({
       ctx.lineWidth = 2.5
       ctx.stroke()
 
-      // Label
       ctx.font = 'bold 11px Inter, sans-serif'
       ctx.fillStyle = '#fff'
       ctx.textAlign = 'center'
@@ -171,7 +168,6 @@ function FieldMap({
     })
   }, [players, currentTimeMs])
 
-  // Resize observer
   useEffect(() => {
     const canvas  = canvasRef.current
     const wrapper = wrapperRef.current
@@ -207,7 +203,7 @@ function FieldMap({
         )}
       </div>
 
-      {/* Time scrubber at bottom */}
+      {/* Time scrubber */}
       <div className="absolute bottom-0 left-0 right-0 bg-black/60 px-4 py-2 flex items-center gap-3">
         <span className="text-white text-xs font-mono w-20">{fmt(currentTimeMs)}</span>
         <input
@@ -220,13 +216,12 @@ function FieldMap({
           className="flex-1 accent-brand-400"
         />
         <span className="text-gray-400 text-xs font-mono w-20 text-right">{fmt(durationMs)}</span>
-        <span className="text-gray-500 text-xs italic">positions from video</span>
       </div>
     </div>
   )
 }
 
-// ── Canvas overlay ─────────────────────────────────────────────────────────────
+// ── Tracking canvas overlay ────────────────────────────────────────────────────
 function TrackingCanvas({
   players,
   activePlayerId,
@@ -270,7 +265,6 @@ function TrackingCanvas({
       const isActive = player.id === activePlayerId
       const radius = isActive ? 16 : 11
 
-      // Draw trail
       const trail = sorted.filter(k => k.timestamp_ms <= currentTimeMs).slice(-10)
       if (trail.length > 1) {
         ctx.beginPath()
@@ -286,13 +280,11 @@ function TrackingCanvas({
         ctx.setLineDash([])
       }
 
-      // Circle shadow
       ctx.beginPath()
       ctx.arc(cx + 2, cy + 2, radius, 0, Math.PI * 2)
       ctx.fillStyle = 'rgba(0,0,0,0.25)'
       ctx.fill()
 
-      // Circle fill
       ctx.beginPath()
       ctx.arc(cx, cy, radius, 0, Math.PI * 2)
       ctx.fillStyle = color + (isActive ? 'dd' : '99')
@@ -301,7 +293,6 @@ function TrackingCanvas({
       ctx.lineWidth = isActive ? 2.5 : 1.5
       ctx.stroke()
 
-      // Label
       ctx.font = `bold ${isActive ? 12 : 10}px Inter, sans-serif`
       ctx.fillStyle = '#fff'
       ctx.textAlign = 'center'
@@ -329,33 +320,110 @@ function TrackingCanvas({
   )
 }
 
+// ── Drawing canvas overlay ─────────────────────────────────────────────────────
+interface DrawHandle { clear(): void }
+
+const VideoDrawingCanvas = forwardRef<DrawHandle, { enabled: boolean; color: string }>(
+  ({ enabled, color }, ref) => {
+    const canvasRef   = useRef<HTMLCanvasElement>(null)
+    const isDrawing   = useRef(false)
+    const lastPt      = useRef<{ x: number; y: number } | null>(null)
+
+    useImperativeHandle(ref, () => ({
+      clear() {
+        const c = canvasRef.current
+        if (c) c.getContext('2d')!.clearRect(0, 0, c.width, c.height)
+      },
+    }))
+
+    useEffect(() => {
+      const canvas = canvasRef.current
+      if (!canvas) return
+      const wrapper = canvas.parentElement!
+      const ro = new ResizeObserver(() => {
+        canvas.width  = wrapper.clientWidth
+        canvas.height = wrapper.clientHeight
+      })
+      ro.observe(wrapper)
+      return () => ro.disconnect()
+    }, [])
+
+    const getPoint = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const c = canvasRef.current!
+      const r = c.getBoundingClientRect()
+      return {
+        x: (e.clientX - r.left) * (c.width  / r.width),
+        y: (e.clientY - r.top)  * (c.height / r.height),
+      }
+    }
+
+    const onDown  = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!enabled) return
+      isDrawing.current = true
+      lastPt.current = getPoint(e)
+    }
+    const onMove  = (e: React.MouseEvent<HTMLCanvasElement>) => {
+      if (!enabled || !isDrawing.current || !lastPt.current) return
+      const c   = canvasRef.current!
+      const ctx = c.getContext('2d')!
+      const pt  = getPoint(e)
+      ctx.beginPath()
+      ctx.moveTo(lastPt.current.x, lastPt.current.y)
+      ctx.lineTo(pt.x, pt.y)
+      ctx.strokeStyle = color
+      ctx.lineWidth   = 3
+      ctx.lineCap     = 'round'
+      ctx.stroke()
+      lastPt.current = pt
+    }
+    const onUp = () => { isDrawing.current = false; lastPt.current = null }
+
+    return (
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full"
+        style={{
+          cursor: enabled ? 'crosshair' : 'default',
+          pointerEvents: enabled ? 'auto' : 'none',
+        }}
+        onMouseDown={onDown}
+        onMouseMove={onMove}
+        onMouseUp={onUp}
+        onMouseLeave={onUp}
+      />
+    )
+  },
+)
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function PlayerTracker({ videoSrc, playId, playName, onClose }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const drawRef  = useRef<DrawHandle>(null)
+
   const [players, setPlayers] = useState<TrackedPlayer[]>(() => {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY(playId)) || '[]') } catch { return [] }
   })
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null)
-  const [currentTimeMs, setCurrentTimeMs] = useState(0)
-  const [durationMs, setDurationMs] = useState(0)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [nameInput, setNameInput] = useState('')
-  const [addingTeam, setAddingTeam] = useState<'offense' | 'defense'>('offense')
-  const [toast, setToast] = useState<string | null>(null)
-  const [view, setView] = useState<'video' | 'map'>('video')
+  const [currentTimeMs, setCurrentTimeMs]   = useState(0)
+  const [durationMs,    setDurationMs]       = useState(0)
+  const [isPlaying,     setIsPlaying]        = useState(false)
+  const [nameInput,     setNameInput]        = useState('')
+  const [addingTeam,    setAddingTeam]       = useState<'offense' | 'defense'>('offense')
+  const [toast,         setToast]            = useState<string | null>(null)
+  const [view,          setView]             = useState<'video' | 'map'>('video')
+  const [drawMode,      setDrawMode]         = useState(false)
+  const [drawColor,     setDrawColor]        = useState('#ffff00')
 
-  // Persist to localStorage
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY(playId), JSON.stringify(players))
   }, [players, playId])
 
-  // Video event listeners
   useEffect(() => {
     const v = videoRef.current
     if (!v) return
-    const onTime = () => setCurrentTimeMs(v.currentTime * 1000)
-    const onMeta = () => setDurationMs(v.duration * 1000)
-    const onPlay = () => setIsPlaying(true)
+    const onTime  = () => setCurrentTimeMs(v.currentTime * 1000)
+    const onMeta  = () => setDurationMs(v.duration * 1000)
+    const onPlay  = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
     v.addEventListener('timeupdate', onTime)
     v.addEventListener('loadedmetadata', onMeta)
@@ -369,7 +437,6 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
     }
   }, [])
 
-  // Space = play/pause
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === ' ' && e.target === document.body) {
@@ -397,7 +464,7 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
     setActivePlayerId(p.id)
     setNameInput('')
     setAddingTeam('offense')
-    showToast(`${team === 'offense' ? 'Offense' : 'Defense'} player "${name}" added`)
+    showToast(`"${name}" added`)
   }
 
   const removePlayer = (id: string) => {
@@ -436,7 +503,6 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
     setCurrentTimeMs(ms)
   }
 
-
   const skip = (ms: number) => {
     const v = videoRef.current
     if (!v) return
@@ -444,6 +510,8 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
   }
 
   const activePlayer = players.find(p => p.id === activePlayerId)
+
+  const DRAW_COLORS = ['#ffff00', '#ff4444', '#44ff44', '#44aaff', '#ffffff', '#ff8800']
 
   return (
     <div className="fixed inset-0 z-50 bg-gray-950 flex flex-col">
@@ -455,17 +523,56 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
           <span className="text-brand-200 text-sm">— {playName}</span>
         </div>
         <div className="flex items-center gap-3 text-sm">
-          {activePlayer && view === 'video' && (
+          {activePlayer && view === 'video' && !drawMode && (
             <span className="flex items-center gap-1.5 bg-brand-600 px-3 py-1 rounded-full text-xs font-medium animate-pulse">
               <span className="w-2 h-2 rounded-full bg-white inline-block" />
               Tracking {activePlayer.name}
             </span>
           )}
 
+          {/* Draw mode controls */}
+          {view === 'video' && drawMode && (
+            <div className="flex items-center gap-1.5">
+              {DRAW_COLORS.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setDrawColor(c)}
+                  className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110"
+                  style={{
+                    backgroundColor: c,
+                    borderColor: drawColor === c ? '#fff' : 'transparent',
+                  }}
+                />
+              ))}
+              <button
+                onClick={() => drawRef.current?.clear()}
+                className="text-brand-200 hover:text-white text-xs px-2 py-0.5 rounded hover:bg-brand-600 transition-colors ml-1"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {/* Draw toggle (video mode only) */}
+          {view === 'video' && (
+            <button
+              onClick={() => setDrawMode(d => !d)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors ${
+                drawMode ? 'bg-white text-brand-600' : 'text-brand-200 hover:text-white hover:bg-brand-600'
+              }`}
+              title="Draw over video"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+              </svg>
+              Draw
+            </button>
+          )}
+
           {/* Video / Map toggle */}
           <div className="flex bg-brand-600 rounded-lg p-0.5 gap-0.5">
             <button
-              onClick={() => setView('video')}
+              onClick={() => { setView('video'); setDrawMode(false) }}
               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors ${
                 view === 'video' ? 'bg-white text-brand-600' : 'text-brand-200 hover:text-white'
               }`}
@@ -476,7 +583,7 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
               Video
             </button>
             <button
-              onClick={() => setView('map')}
+              onClick={() => { setView('map'); setDrawMode(false) }}
               className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors ${
                 view === 'map' ? 'bg-white text-brand-600' : 'text-brand-200 hover:text-white'
               }`}
@@ -502,10 +609,9 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
 
         {/* Video / Map side */}
         <div className="flex-1 flex flex-col bg-black overflow-hidden">
-          {/* Content area — video is ALWAYS mounted to preserve event listeners */}
           <div className="flex-1 relative overflow-hidden">
 
-            {/* Video layer — always in DOM, invisible when map is shown */}
+            {/* Video layer — always mounted */}
             <div className={`absolute inset-0 ${view === 'map' ? 'invisible' : 'visible'}`}>
               {videoSrc ? (
                 <>
@@ -515,18 +621,28 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
                     className="w-full h-full object-contain"
                     preload="metadata"
                   />
-                  <TrackingCanvas
-                    players={players}
-                    activePlayerId={activePlayerId}
-                    currentTimeMs={currentTimeMs}
-                    onPlace={placeKeyframe}
-                  />
-                  {activePlayer && (
+                  {/* Tracking canvas — disabled when drawing */}
+                  {!drawMode && (
+                    <TrackingCanvas
+                      players={players}
+                      activePlayerId={activePlayerId}
+                      currentTimeMs={currentTimeMs}
+                      onPlace={placeKeyframe}
+                    />
+                  )}
+                  {/* Drawing canvas */}
+                  <VideoDrawingCanvas ref={drawRef} enabled={drawMode} color={drawColor} />
+                  {activePlayer && !drawMode && (
                     <div
                       className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full text-xs font-medium text-white pointer-events-none"
                       style={{ backgroundColor: TEAM_COLOR[activePlayer.team] + 'cc' }}
                     >
                       Click anywhere to place {activePlayer.name}
+                    </div>
+                  )}
+                  {drawMode && (
+                    <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full text-xs font-medium text-white pointer-events-none bg-gray-800/80">
+                      Draw mode — click and drag to draw
                     </div>
                   )}
                 </>
@@ -537,7 +653,7 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
               )}
             </div>
 
-            {/* Field map layer — on top when active */}
+            {/* Field map layer */}
             {view === 'map' && (
               <FieldMap
                 players={players}
@@ -640,7 +756,7 @@ export default function PlayerTracker({ videoSrc, playId, playName, onClose }: P
                     return (
                       <button
                         key={p.id}
-                        onClick={() => setActivePlayerId(isActive ? null : p.id)}
+                        onClick={() => { setActivePlayerId(isActive ? null : p.id); setDrawMode(false) }}
                         className={`w-full flex items-center gap-2 px-2.5 py-2 rounded text-left transition-colors group ${
                           isActive ? 'bg-gray-700 ring-1 ring-gray-500' : 'hover:bg-gray-800'
                         }`}
