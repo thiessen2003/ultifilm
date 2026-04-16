@@ -363,7 +363,7 @@ export default function GamePage() {
           onCreated={playId => {
             setShowWizard(false)
             createdPlayRef.current = null
-            navigate(`/games/${gameId}/plays/${playId}?tab=track`)
+            navigate(`/games/${gameId}/plays/${playId}`)
           }}
           onCancel={() => setShowWizard(false)}
         />
