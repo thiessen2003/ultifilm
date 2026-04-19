@@ -10,7 +10,7 @@ import { usePlays, usePlayPositions } from '../hooks/usePlays'
 import type { PlayerPosition, Team } from '../domain/entities/PlayerPosition'
 
 type DrawSurface = 'field' | 'video'
-type EditMode = 'move' | 'draw' | 'track'
+type EditMode = 'draw' | 'track'
 
 const TEAM_LABELS: Record<Team, string> = {
   offense: 'Offense',
@@ -48,6 +48,7 @@ export default function PlayEditorPage() {
   const [keyframes, setKeyframes] = useState<Record<string, Array<{ time_ms: number; x: number; y: number }>>>(() => {
     try { return JSON.parse(localStorage.getItem(`keyframes_${playId}`) || '{}') } catch { return {} }
   })
+  const [stagedKeyframesByTime, setStagedKeyframesByTime] = useState<Record<number, Record<string, { x: number; y: number }>>>({})
   const [currentTime, setCurrentTime] = useState(0)
   const [isPlayingKeyframes, setIsPlayingKeyframes] = useState(false)
   const [maxKeyframeTime, setMaxKeyframeTime] = useState(() => {
@@ -120,21 +121,42 @@ export default function PlayEditorPage() {
   }
 
   // Keyframe helpers
-  const recordKeyframe = (positionId: string, x: number, y: number) => {
+  const stagedAtCurrentTime = stagedKeyframesByTime[currentTime] || {}
+  const hasUnsavedCurrentKeyframes = Object.keys(stagedAtCurrentTime).length > 0
+
+  const saveCurrentKeyframes = () => {
+    if (!hasUnsavedCurrentKeyframes) return
     setKeyframes(prev => {
-      const next = { ...prev, [positionId]: [...(prev[positionId] || [])] }
-      const existing = next[positionId].findIndex(kf => kf.time_ms === currentTime)
-      if (existing >= 0) next[positionId][existing] = { time_ms: currentTime, x, y }
-      else next[positionId].push({ time_ms: currentTime, x, y })
+      const next = { ...prev }
+      Object.entries(stagedAtCurrentTime).forEach(([positionId, point]) => {
+        next[positionId] = [...(next[positionId] || [])]
+        const existing = next[positionId].findIndex(kf => kf.time_ms === currentTime)
+        if (existing >= 0) next[positionId][existing] = { time_ms: currentTime, x: point.x, y: point.y }
+        else next[positionId].push({ time_ms: currentTime, x: point.x, y: point.y })
+      })
       localStorage.setItem(`keyframes_${playId}`, JSON.stringify(next))
       return next
     })
+    setStagedKeyframesByTime(prev => {
+      const next = { ...prev }
+      delete next[currentTime]
+      return next
+    })
     setMaxKeyframeTime(prev => Math.max(prev, currentTime + 1000))
+    setSaved(false)
   }
 
   const hasKeyframeAtTime = (positionId: string) => {
+    if (stagedAtCurrentTime[positionId]) return true
     const kfs = keyframes[positionId] || []
     return kfs.some(kf => kf.time_ms === currentTime)
+  }
+
+  const getDisplayPosition = (pos: PlayerPosition): { x: number; y: number } => {
+    const staged = stagedAtCurrentTime[pos.id]
+    if (staged) return staged
+    if (Object.keys(keyframes).length === 0) return { x: pos.x, y: pos.y }
+    return interpolatePosition(pos.id, pos)
   }
 
   const interpolatePosition = (positionId: string, fallbackPos: PlayerPosition): { x: number; y: number } => {
@@ -202,17 +224,19 @@ export default function PlayEditorPage() {
 
   // ── Video dot drag handlers ────────────────────────────────────────────────
   const onVideoMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (editMode !== 'move') return
+    if (editMode !== 'track') return
     const rect = videoOverlayRef.current!.getBoundingClientRect()
     const mx = e.clientX - rect.left
     const my = e.clientY - rect.top
     const W = rect.width
     const H = rect.height
     for (const pos of [...positions].reverse()) {
-      const cx = (pos.x / 100) * W
-      const cy = (pos.y / 100) * H
+      const displayPos = getDisplayPosition(pos)
+      const cx = (displayPos.x / 100) * W
+      const cy = (displayPos.y / 100) * H
       if (Math.hypot(mx - cx, my - cy) <= DOT_SIZE / 2 + 4) {
         videoDragging.current = { id: pos.id }
+        setActiveTrackedId(pos.id)
         e.preventDefault()
         return
       }
@@ -220,13 +244,18 @@ export default function PlayEditorPage() {
   }
 
   const onVideoMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!videoDragging.current) return
+    if (!videoDragging.current || editMode !== 'track') return
     const rect = videoOverlayRef.current!.getBoundingClientRect()
     const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
     const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100))
-    handleChange(positions.map(p =>
-      p.id === videoDragging.current!.id ? { ...p, x, y } : p
-    ))
+    setStagedKeyframesByTime(prev => ({
+      ...prev,
+      [currentTime]: {
+        ...(prev[currentTime] || {}),
+        [videoDragging.current!.id]: { x, y },
+      },
+    }))
+    setSaved(false)
   }
 
   const onVideoMouseUp = () => { videoDragging.current = null }
@@ -281,15 +310,7 @@ export default function PlayEditorPage() {
             {/* Mode toggle */}
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Mode</div>
-              <div className="grid grid-cols-3 gap-1">
-                <button
-                  onClick={() => setEditMode('move')}
-                  className={`text-xs py-1.5 rounded font-medium transition-colors ${
-                    editMode === 'move' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  Move
-                </button>
+              <div className="grid grid-cols-2 gap-1">
                 <button
                   onClick={() => setEditMode('track')}
                   className={`text-xs py-1.5 rounded font-medium transition-colors ${
@@ -317,7 +338,7 @@ export default function PlayEditorPage() {
                   <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">Players</div>
                   <InfoButton
                     title="Adding players"
-                    content="Switch to Move mode then drag dots to reposition. Use + / − to add or remove dots."
+                    content="Use Track mode with Select tool to drag players. Use + / − to add or remove dots."
                   />
                 </div>
                 {(['offense', 'defense', 'disc'] as Team[]).map(team => (
@@ -341,7 +362,7 @@ export default function PlayEditorPage() {
                   <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">Keyframes</div>
                   <InfoButton
                     title="Keyframes"
-                    content="Use Track mode to animate movement. Scrub the timeline, then drag a player or the disc to set a keyframe at that moment."
+                    content="Use Track mode to animate movement. Scrub the timeline, drag players to stage changes, then click Save Current Keyframes."
                   />
                 </div>
 
@@ -371,10 +392,20 @@ export default function PlayEditorPage() {
                   )}
                 </div>
 
+                {hasUnsavedCurrentKeyframes && (
+                  <button
+                    onClick={saveCurrentKeyframes}
+                    className="w-full text-xs bg-brand-500 hover:bg-brand-600 text-white py-1.5 px-2 rounded transition-colors mt-2"
+                  >
+                    Save Current Keyframes
+                  </button>
+                )}
+
                 {Object.keys(keyframes).length > 0 && (
                   <button
                     onClick={() => {
                       setKeyframes({})
+                      setStagedKeyframesByTime({})
                       localStorage.removeItem(`keyframes_${playId}`)
                       setCurrentTime(0)
                       setMaxKeyframeTime(10000)
@@ -402,17 +433,15 @@ export default function PlayEditorPage() {
             {/* Hint bar */}
             <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-200 shrink-0">
               <span className="text-sm text-gray-500">
-                {editMode === 'move'
-                  ? 'Move mode - drag dots to reposition base setup'
-                  : editMode === 'track'
-                    ? 'Track mode - scrub timeline, drag players to keyframe, or use the toolbar to draw'
-                    : drawSurface === 'field'
-                      ? 'Draw mode - use toolbar on the right to annotate'
-                      : 'Draw mode - annotations appear on both Field and Video'}
+                {editMode === 'track'
+                  ? 'Track mode - scrub timeline, drag players to stage keyframes, then save current keyframes'
+                  : drawSurface === 'field'
+                    ? 'Draw mode - use toolbar on the right to annotate'
+                    : 'Draw mode - annotations appear on both Field and Video'}
               </span>
               <InfoButton
                 title="Draw tab"
-                content="Use Move for base positions, Track for drag-to-keyframe animation, and Draw for annotations."
+                content="Use Track to stage and save keyframes, and Draw for annotations."
               />
             </div>
 
@@ -429,9 +458,8 @@ export default function PlayEditorPage() {
                   <div className="w-full h-full rounded overflow-hidden shadow-inner border border-gray-300 relative">
                     <PlayCanvas
                       positions={positions.map(p => {
-                        if (Object.keys(keyframes).length === 0) return p
-                        const interp = interpolatePosition(p.id, p)
-                        return { ...p, x: interp.x, y: interp.y }
+                        const display = getDisplayPosition(p)
+                        return { ...p, x: display.x, y: display.y }
                       })}
                       onChange={editMode === 'track' ? () => {} : handleChange}
                       onSelect={setActiveTrackedId}
@@ -439,7 +467,14 @@ export default function PlayEditorPage() {
                       onPositionDrag={(id, x, y) => {
                         if (editMode !== 'track') return
                         setActiveTrackedId(id)
-                        recordKeyframe(id, x, y)
+                        setStagedKeyframesByTime(prev => ({
+                          ...prev,
+                          [currentTime]: {
+                            ...(prev[currentTime] || {}),
+                            [id]: { x, y },
+                          },
+                        }))
+                        setSaved(false)
                       }}
                       readOnly={editMode === 'draw'}
                     />
@@ -452,7 +487,7 @@ export default function PlayEditorPage() {
                 <div
                   ref={videoOverlayRef}
                   className={`absolute inset-0 bg-black ${drawSurface !== 'video' ? 'hidden' : ''}`}
-                  style={{ cursor: editMode === 'move' ? 'crosshair' : 'default' }}
+                  style={{ cursor: editMode === 'track' ? 'crosshair' : 'default' }}
                   onMouseDown={onVideoMouseDown}
                   onMouseMove={onVideoMouseMove}
                   onMouseUp={onVideoMouseUp}
@@ -466,7 +501,7 @@ export default function PlayEditorPage() {
                   />
                   {/* Player dots overlay */}
                   {positions.map(pos => {
-                    const interpPos = Object.keys(keyframes).length > 0 ? interpolatePosition(pos.id, pos) : pos
+                    const interpPos = getDisplayPosition(pos)
                     return (
                     <div
                       key={pos.id}
@@ -510,13 +545,13 @@ export default function PlayEditorPage() {
                 Shared DrawingCanvas — always mounted, always rendered on top.
                 Because it's a sibling of the surface divs (not inside them),
                 it survives surface switches and holds its pixel data.
-                interactive in Draw and Track modes; disabled in Move mode
-                so dots can be dragged underneath.
+                interactive in Draw and Track modes.
               */}
               <DrawingCanvas
                 ref={drawRef}
                 visible={true}
                 interactive={editMode === 'draw' || editMode === 'track'}
+                defaultTool={editMode === 'track' ? 'select' : 'pen'}
                 onStrokeEnd={() => setSaved(false)}
               />
             </div>

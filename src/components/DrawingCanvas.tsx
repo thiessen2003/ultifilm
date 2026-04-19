@@ -5,6 +5,7 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tool =
+  | 'select'
   | 'pen' | 'marker' | 'dashed' | 'calligraphy' | 'spray'
   | 'eraser' | 'text' | 'arrow' | 'circle' | 'rect' | 'triangle'
 
@@ -18,12 +19,14 @@ interface Props {
   visible: boolean
   onStrokeEnd?: () => void   // called after every completed stroke so parent can save
   interactive?: boolean      // when false, canvas is shown but pointer events pass through
+  defaultTool?: Tool         // resets active tool when mode changes in parent
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const COLORS = ['#E53535','#3543D0','#22c55e','#f59e0b','#ffffff','#111111']
 
 const TOOLS: { id: Tool; tip: string; svg: React.ReactNode }[] = [
+  { id: 'select',      tip: 'Select',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6-6 6 6M12 3v18M3 18h18"/></svg> },
   { id: 'pen',         tip: 'Pen',         svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> },
   { id: 'marker',      tip: 'Marker',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.9-5.7a8.5 8.5 0 113.8 3.8z"/></svg> },
   { id: 'dashed',      tip: 'Dashed',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="12" x2="7" y2="12"/><line x1="10" y1="12" x2="14" y2="12"/><line x1="17" y1="12" x2="21" y2="12"/></svg> },
@@ -42,12 +45,11 @@ const SHAPE_TOOLS: Tool[] = ['arrow','circle','rect','triangle']
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
-  ({ visible, onStrokeEnd, interactive = true }, ref) => {
+  ({ visible, onStrokeEnd, interactive = true, defaultTool = 'pen' }, ref) => {
     const canvasRef   = useRef<HTMLCanvasElement>(null)
     const wrapperRef  = useRef<HTMLDivElement>(null)
     const eraserRef   = useRef<HTMLDivElement>(null)
-
-    const [activeTool,  setActiveTool]  = useState<Tool>('pen')
+    const [activeTool,  setActiveTool]  = useState<Tool>(defaultTool)
     const [activeColor, setActiveColor] = useState(COLORS[0])
     const [strokeWidth, setStrokeWidth] = useState(3)
 
@@ -59,7 +61,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
     const startY     = useRef(0)
     const snapshot   = useRef<ImageData | null>(null)
     const textInpRef = useRef<HTMLInputElement | null>(null)
-    const toolRef    = useRef<Tool>('pen')
+    const toolRef    = useRef<Tool>('select')
     const colorRef   = useRef(COLORS[0])
     const sizeRef    = useRef(3)
 
@@ -67,6 +69,10 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
     useEffect(() => { toolRef.current  = activeTool  }, [activeTool])
     useEffect(() => { colorRef.current = activeColor }, [activeColor])
     useEffect(() => { sizeRef.current  = strokeWidth }, [strokeWidth])
+    useEffect(() => {
+      setActiveTool(defaultTool)
+      toolRef.current = defaultTool
+    }, [defaultTool])
 
     // ── Canvas resize ──────────────────────────────────────────────────
     useEffect(() => {
@@ -283,6 +289,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         if (!visible) return
         const tool = toolRef.current
         const ctx  = canvas.getContext('2d')!
+        if (tool === 'select') {
+          return
+        }
         if (tool === 'text') {
           const pos = getPos(e)
           placeTextInput(pos.x, pos.y)
@@ -386,38 +395,42 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
     }, [visible, onStrokeEnd])
 
     const eraserSize = strokeWidth * 8
+    const isPassThrough = interactive === false || activeTool === 'select'
 
     // ── Render ─────────────────────────────────────────────────────────
     return (
-      <div ref={wrapperRef} className="absolute inset-0 flex" style={interactive ? undefined : { pointerEvents: 'none' }}>
-        {/* Canvas */}
-        <canvas
-          ref={canvasRef}
-          style={{
-            position: 'absolute', inset: 0, width: '100%', height: '100%',
-            display: visible ? 'block' : 'none',
-            cursor: activeTool === 'eraser' ? 'none'
-                  : activeTool === 'text'   ? 'text'
-                  : 'crosshair',
-            zIndex: 10,
-            pointerEvents: interactive === false ? 'none' : 'auto',
-          }}
-        />
-
-        {/* Eraser cursor ring */}
-        {activeTool === 'eraser' && visible && (
-          <div
-            ref={eraserRef}
+      <>
+        <div ref={wrapperRef} className="absolute inset-0" style={isPassThrough ? { pointerEvents: 'none' } : undefined}>
+          {/* Canvas */}
+          <canvas
+            ref={canvasRef}
             style={{
-              position: 'absolute', pointerEvents: 'none', zIndex: 11,
-              width: eraserSize, height: eraserSize,
-              border: '2px solid rgba(255,255,255,0.8)',
-              borderRadius: '50%',
-              transform: 'translate(-50%, -50%)',
-              boxShadow: '0 0 0 1px rgba(0,0,0,0.4)',
+              position: 'absolute', inset: 0, width: '100%', height: '100%',
+              display: visible ? 'block' : 'none',
+              cursor: activeTool === 'select' ? 'default'
+                    : activeTool === 'eraser' ? 'none'
+                    : activeTool === 'text'   ? 'text'
+                    : 'crosshair',
+              zIndex: 10,
+              pointerEvents: isPassThrough ? 'none' : 'auto',
             }}
           />
-        )}
+
+          {/* Eraser cursor ring */}
+          {activeTool === 'eraser' && visible && (
+            <div
+              ref={eraserRef}
+              style={{
+                position: 'absolute', pointerEvents: 'none', zIndex: 11,
+                width: eraserSize, height: eraserSize,
+                border: '2px solid rgba(255,255,255,0.8)',
+                borderRadius: '50%',
+                transform: 'translate(-50%, -50%)',
+                boxShadow: '0 0 0 1px rgba(0,0,0,0.4)',
+              }}
+            />
+          )}
+        </div>
 
         {/* Right toolbar — only shown when interactive (draw mode) */}
         {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-14 bg-white border-l border-gray-200 flex flex-col items-center py-2 gap-1 overflow-y-auto z-20">
@@ -439,31 +452,35 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
 
           <div className="w-7 h-px bg-gray-200 my-1" />
 
-          {/* Colors */}
-          {COLORS.map(c => (
-            <button
-              key={c}
-              title={c}
-              onClick={() => setActiveColor(c)}
-              style={{ backgroundColor: c }}
-              className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${
-                activeColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
-              } ${c === '#ffffff' ? '!border-gray-300' : ''}`}
-            />
-          ))}
+          {/* Colors — only shown when a drawing tool is active */}
+          {activeTool !== 'select' && (
+            <>
+              {COLORS.map(c => (
+                <button
+                  key={c}
+                  title={c}
+                  onClick={() => setActiveColor(c)}
+                  style={{ backgroundColor: c }}
+                  className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${
+                    activeColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
+                  } ${c === '#ffffff' ? '!border-gray-300' : ''}`}
+                />
+              ))}
 
-          <div className="w-7 h-px bg-gray-200 my-1" />
+              <div className="w-7 h-px bg-gray-200 my-1" />
 
-          {/* Stroke size */}
-          <span className="text-gray-400 font-mono" style={{ fontSize: 9 }}>{strokeWidth}px</span>
-          <input
-            type="range" min={1} max={20} value={strokeWidth}
-            onChange={e => setStrokeWidth(Number(e.target.value))}
-            className="accent-blue-600"
-            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 4, height: 56, cursor: 'pointer' }}
-          />
+              {/* Stroke size */}
+              <span className="text-gray-400 font-mono" style={{ fontSize: 9 }}>{strokeWidth}px</span>
+              <input
+                type="range" min={1} max={20} value={strokeWidth}
+                onChange={e => setStrokeWidth(Number(e.target.value))}
+                className="accent-blue-600"
+                style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 4, height: 56, cursor: 'pointer' }}
+              />
 
-          <div className="w-7 h-px bg-gray-200 my-1" />
+              <div className="w-7 h-px bg-gray-200 my-1" />
+            </>
+          )}
 
           {/* Undo / Redo */}
           <button onClick={undo} title="Undo (⌘Z)" className="w-9 h-7 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded hover:bg-blue-50">↩</button>
@@ -487,7 +504,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
             </svg>
           </button>
         </div>}
-      </div>
+      </>
     )
   }
 )
