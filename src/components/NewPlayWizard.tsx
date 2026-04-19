@@ -261,7 +261,7 @@ export default function NewPlayWizard({ videoSrc, currentTime, onCreated, onCanc
                   disabled={saving}
                   className="text-sm text-gray-500 hover:text-gray-700 px-3 py-2"
                 >
-                  {discPlaced ? '' : 'Skip & '}Create Play →
+                  {discPlaced ? '' : 'Skip & Create Play →'}
                 </button>
                 {discPlaced && (
                   <button

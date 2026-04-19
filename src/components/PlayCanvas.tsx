@@ -5,6 +5,9 @@ interface Props {
   positions: PlayerPosition[]
   onChange: (positions: PlayerPosition[]) => void
   readOnly?: boolean
+  selectedId?: string | null
+  onSelect?: (id: string | null) => void
+  onPositionDrag?: (id: string, x: number, y: number) => void
   // When set, clicking empty canvas space places a new dot of this team
   placementTeam?: Team
   // Teams that are locked (rendered but not draggable)
@@ -25,12 +28,22 @@ function hitTest(pos: PlayerPosition, mx: number, my: number, w: number, h: numb
   return Math.hypot(mx - cx, my - cy) <= DOT_RADIUS + 4
 }
 
-export default function PlayCanvas({ positions, onChange, readOnly = false, placementTeam, lockedTeams = [] }: Props) {
+export default function PlayCanvas({
+  positions,
+  onChange,
+  readOnly = false,
+  selectedId = null,
+  onSelect,
+  onPositionDrag,
+  placementTeam,
+  lockedTeams = [],
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [internalSelected, setInternalSelected] = useState<string | null>(null)
   const dragging = useRef<{ id: string; offX: number; offY: number } | null>(null)
   const posRef = useRef(positions)
   posRef.current = positions
+  const selected = selectedId ?? internalSelected
 
   // ── draw ────────────────────────────────────────────────────────────────────
   const draw = useCallback(() => {
@@ -149,7 +162,8 @@ export default function PlayCanvas({ positions, onChange, readOnly = false, plac
     for (const pos of [...posRef.current].reverse()) {
       if (lockedTeams.includes(pos.team)) continue
       if (hitTest(pos, mx, my, W, H)) {
-        setSelected(pos.id)
+        setInternalSelected(pos.id)
+        onSelect?.(pos.id)
         dragging.current = { id: pos.id, offX: 0, offY: 0 }
         return
       }
@@ -175,7 +189,8 @@ export default function PlayCanvas({ positions, onChange, readOnly = false, plac
       return
     }
 
-    setSelected(null)
+    setInternalSelected(null)
+    onSelect?.(null)
   }
 
   const onMouseMove = (e: React.MouseEvent) => {
@@ -186,6 +201,7 @@ export default function PlayCanvas({ positions, onChange, readOnly = false, plac
         ? { ...p, x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) }
         : p
     )
+    onPositionDrag?.(dragging.current.id, Math.max(0, Math.min(100, x)), Math.max(0, Math.min(100, y)))
     onChange(updated)
   }
 

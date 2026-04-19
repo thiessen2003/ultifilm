@@ -1,19 +1,16 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import PlayCanvas from '../components/PlayCanvas'
 import DrawingCanvas from '../components/DrawingCanvas'
 import type { DrawingCanvasHandle } from '../components/DrawingCanvas'
-import PlayerTracker from '../components/PlayerTracker'
-import PlayVisualizer from '../components/PlayVisualizer'
 import InfoButton from '../components/InfoButton'
 import { useGame } from '../hooks/useGames'
 import { usePlays, usePlayPositions } from '../hooks/usePlays'
 import type { PlayerPosition, Team } from '../domain/entities/PlayerPosition'
 
-type EditorTab = 'draw' | 'track' | 'visualize'
 type DrawSurface = 'field' | 'video'
-type EditMode = 'move' | 'draw'
+type EditMode = 'move' | 'draw' | 'track'
 
 const TEAM_LABELS: Record<Team, string> = {
   offense: 'Offense',
@@ -38,24 +35,32 @@ const DOT_SIZE = 28
 export default function PlayEditorPage() {
   const { gameId, playId } = useParams<{ gameId: string; playId: string }>()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
 
   const { game, gameService } = useGame(gameId!)
   const { plays, playService } = usePlays(gameId!)
   const { positions, setPositions, playService: ps } = usePlayPositions(playId!)
 
-  const [tab, setTab] = useState<EditorTab>(
-    searchParams.get('tab') === 'track' ? 'track' : 'draw'
-  )
   const [drawSurface, setDrawSurface] = useState<DrawSurface>('field')
   const [editMode, setEditMode] = useState<EditMode>('draw')
+  const [activeTrackedId, setActiveTrackedId] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [keyframes, setKeyframes] = useState<Record<string, Array<{ time_ms: number; x: number; y: number }>>>(() => {
+    try { return JSON.parse(localStorage.getItem(`keyframes_${playId}`) || '{}') } catch { return {} }
+  })
+  const [currentTime, setCurrentTime] = useState(0)
+  const [isPlayingKeyframes, setIsPlayingKeyframes] = useState(false)
+  const [maxKeyframeTime, setMaxKeyframeTime] = useState(() => {
+    const times = Object.values(keyframes).flat().map(kf => kf.time_ms)
+    return times.length > 0 ? Math.max(...times) : 10000
+  })
 
   // Single shared drawing canvas — lives across both field and video surfaces
   const drawRef = useRef<DrawingCanvasHandle>(null)
   const videoOverlayRef = useRef<HTMLDivElement>(null)
   const videoDragging = useRef<{ id: string } | null>(null)
+  const keyframePlaybackRef = useRef<number | null>(null)
+  const lastPlaybackTimeRef = useRef<number>(0)
 
   const play = plays.find(p => p.id === playId)
   const videoUrl = game ? gameService.getVideoUrl(game) : null
@@ -71,7 +76,28 @@ export default function PlayEditorPage() {
     setSaved(false)
   }, [setPositions])
 
+  useEffect(() => {
+    if (editMode !== 'track') setActiveTrackedId(null)
+    // When entering track mode, ensure all players have a keyframe at t=0
+    if (editMode === 'track') {
+      setKeyframes(prev => {
+        const next = { ...prev }
+        positions.forEach(pos => {
+          if (!next[pos.id]) next[pos.id] = []
+          // Add t=0 keyframe if it doesn't exist
+          if (!next[pos.id].some(kf => kf.time_ms === 0)) {
+            next[pos.id].unshift({ time_ms: 0, x: pos.x, y: pos.y })
+          }
+        })
+        localStorage.setItem(`keyframes_${playId}`, JSON.stringify(next))
+        return next
+      })
+    }
+  }, [editMode, positions, playId])
+
   const addDot = (team: Team) => {
+    // Restrict disc to max 1
+    if (team === 'disc' && positions.some(p => p.team === 'disc')) return
     const newPos: PlayerPosition = {
       id: `temp-${Date.now()}`,
       play_id: playId!,
@@ -93,6 +119,70 @@ export default function PlayEditorPage() {
     setSaved(false)
   }
 
+  // Keyframe helpers
+  const recordKeyframe = (positionId: string, x: number, y: number) => {
+    setKeyframes(prev => {
+      const next = { ...prev, [positionId]: [...(prev[positionId] || [])] }
+      const existing = next[positionId].findIndex(kf => kf.time_ms === currentTime)
+      if (existing >= 0) next[positionId][existing] = { time_ms: currentTime, x, y }
+      else next[positionId].push({ time_ms: currentTime, x, y })
+      localStorage.setItem(`keyframes_${playId}`, JSON.stringify(next))
+      return next
+    })
+    setMaxKeyframeTime(prev => Math.max(prev, currentTime + 1000))
+  }
+
+  const hasKeyframeAtTime = (positionId: string) => {
+    const kfs = keyframes[positionId] || []
+    return kfs.some(kf => kf.time_ms === currentTime)
+  }
+
+  const interpolatePosition = (positionId: string, fallbackPos: PlayerPosition): { x: number; y: number } => {
+    const kfs = keyframes[positionId]
+    if (!kfs || kfs.length === 0) return { x: fallbackPos.x, y: fallbackPos.y }
+    const sorted = [...kfs].sort((a, b) => a.time_ms - b.time_ms)
+    if (currentTime <= sorted[0].time_ms) return { x: sorted[0].x, y: sorted[0].y }
+    if (currentTime >= sorted[sorted.length - 1].time_ms) {
+      const last = sorted[sorted.length - 1]
+      return { x: last.x, y: last.y }
+    }
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const a = sorted[i], b = sorted[i + 1]
+      if (currentTime >= a.time_ms && currentTime <= b.time_ms) {
+        const t = (currentTime - a.time_ms) / (b.time_ms - a.time_ms)
+        return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
+      }
+    }
+    return { x: fallbackPos.x, y: fallbackPos.y }
+  }
+
+  // Keyframe playback animation loop
+  useEffect(() => {
+    if (!isPlayingKeyframes) {
+      if (keyframePlaybackRef.current !== null) cancelAnimationFrame(keyframePlaybackRef.current)
+      return
+    }
+    lastPlaybackTimeRef.current = Date.now()
+    const tick = () => {
+      const now = Date.now()
+      const delta = now - lastPlaybackTimeRef.current
+      lastPlaybackTimeRef.current = now
+      setCurrentTime(prev => {
+        const next = prev + delta
+        if (next >= maxKeyframeTime) {
+          setIsPlayingKeyframes(false)
+          return maxKeyframeTime
+        }
+        return next
+      })
+      keyframePlaybackRef.current = requestAnimationFrame(tick)
+    }
+    keyframePlaybackRef.current = requestAnimationFrame(tick)
+    return () => {
+      if (keyframePlaybackRef.current !== null) cancelAnimationFrame(keyframePlaybackRef.current)
+    }
+  }, [isPlayingKeyframes, maxKeyframeTime])
+
   const handleSave = async () => {
     if (!playId) return
     setSaving(true)
@@ -112,7 +202,7 @@ export default function PlayEditorPage() {
 
   // ── Video dot drag handlers ────────────────────────────────────────────────
   const onVideoMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (editMode === 'draw') return
+    if (editMode !== 'move') return
     const rect = videoOverlayRef.current!.getBoundingClientRect()
     const mx = e.clientX - rect.left
     const my = e.clientY - rect.top
@@ -156,22 +246,9 @@ export default function PlayEditorPage() {
         <span className="text-xs text-gray-400 truncate hidden sm:block">
           {game?.title} › <span className="text-gray-600 font-medium">{play?.name ?? '…'}</span>
         </span>
-        <div className="flex gap-0.5 ml-auto">
-          {([['draw', 'Draw'], ['track', 'Track Players'], ['visualize', 'Visualize']] as [EditorTab, string][]).map(([t, label]) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-4 py-1 text-sm font-medium rounded transition-colors ${
-                tab === t ? 'bg-brand-500 text-white' : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
 
-      {tab === 'draw' && <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
 
           {/* Left panel */}
           <div className="w-48 shrink-0 bg-white border-r border-gray-200 flex flex-col p-3 gap-3 overflow-y-auto">
@@ -204,18 +281,26 @@ export default function PlayEditorPage() {
             {/* Mode toggle */}
             <div>
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Mode</div>
-              <div className="flex gap-1">
+              <div className="grid grid-cols-3 gap-1">
                 <button
                   onClick={() => setEditMode('move')}
-                  className={`flex-1 text-xs py-1.5 rounded font-medium transition-colors ${
+                  className={`text-xs py-1.5 rounded font-medium transition-colors ${
                     editMode === 'move' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
                   Move
                 </button>
                 <button
+                  onClick={() => setEditMode('track')}
+                  className={`text-xs py-1.5 rounded font-medium transition-colors ${
+                    editMode === 'track' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  Track
+                </button>
+                <button
                   onClick={() => setEditMode('draw')}
-                  className={`flex-1 text-xs py-1.5 rounded font-medium transition-colors ${
+                  className={`text-xs py-1.5 rounded font-medium transition-colors ${
                     editMode === 'draw' ? 'bg-brand-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
@@ -245,10 +330,60 @@ export default function PlayEditorPage() {
                     >−</button>
                     <button
                       onClick={() => addDot(team)}
-                      className="text-gray-400 hover:text-blue-600 text-sm font-bold leading-none px-1"
+                      disabled={team === 'disc' && positions.some(p => p.team === 'disc')}
+                      className="text-gray-400 hover:text-blue-600 disabled:opacity-40 text-sm font-bold leading-none px-1"
                     >+</button>
                   </div>
                 ))}
+
+                <hr className="border-gray-100 my-1" />
+                <div className="flex items-center gap-1.5 mb-1">
+                  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex-1">Keyframes</div>
+                  <InfoButton
+                    title="Keyframes"
+                    content="Use Track mode to animate movement. Scrub the timeline, then drag a player or the disc to set a keyframe at that moment."
+                  />
+                </div>
+
+                <div className="space-y-1 text-xs min-h-36 overflow-y-auto">
+                  {positions.length === 0 ? (
+                    <p className="text-gray-400 italic">No players to keyframe</p>
+                  ) : (
+                    positions.map(pos => (
+                      <div
+                        key={pos.id}
+                        className={`flex items-center gap-1 p-1 rounded border transition-colors ${
+                          activeTrackedId === pos.id
+                            ? 'bg-brand-50 border-brand-300'
+                            : 'bg-gray-50 border-transparent'
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full shrink-0 ${TEAM_COLORS_CLASS[pos.team]}`} />
+                        <span className="text-gray-700 flex-1">{pos.label || 'Disc'}</span>
+                        {keyframes[pos.id] && keyframes[pos.id].length > 0 && (
+                          <span className="text-gray-500 text-xs font-mono shrink-0">{keyframes[pos.id].length}</span>
+                        )}
+                        {hasKeyframeAtTime(pos.id) && (
+                          <span className="text-green-600 text-[10px] font-semibold shrink-0">KF</span>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {Object.keys(keyframes).length > 0 && (
+                  <button
+                    onClick={() => {
+                      setKeyframes({})
+                      localStorage.removeItem(`keyframes_${playId}`)
+                      setCurrentTime(0)
+                      setMaxKeyframeTime(10000)
+                    }}
+                    className="w-full text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 py-1 px-2 rounded transition-colors mt-2"
+                  >
+                    Clear all keyframes
+                  </button>
+                )}
               </>
             )}
 
@@ -268,14 +403,16 @@ export default function PlayEditorPage() {
             <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-200 shrink-0">
               <span className="text-sm text-gray-500">
                 {editMode === 'move'
-                  ? 'Move mode — drag dots to reposition'
-                  : drawSurface === 'field'
-                    ? 'Draw mode — use toolbar on the right to annotate'
-                    : 'Draw mode — annotations appear on both Field and Video'}
+                  ? 'Move mode - drag dots to reposition base setup'
+                  : editMode === 'track'
+                    ? 'Track mode - scrub timeline, drag players to keyframe, or use the toolbar to draw'
+                    : drawSurface === 'field'
+                      ? 'Draw mode - use toolbar on the right to annotate'
+                      : 'Draw mode - annotations appear on both Field and Video'}
               </span>
               <InfoButton
                 title="Draw tab"
-                content="The drawing layer is shared between Field and Video views. Switch to Move mode to drag dots; Draw mode to annotate."
+                content="Use Move for base positions, Track for drag-to-keyframe animation, and Draw for annotations."
               />
             </div>
 
@@ -287,13 +424,26 @@ export default function PlayEditorPage() {
             <div className="flex-1 relative overflow-hidden">
 
               {/* ── Field surface ── */}
-              <div className={`absolute inset-0 bg-gray-200 p-3 ${drawSurface !== 'field' ? 'hidden' : ''}`}>
-                <div className="w-full h-full rounded overflow-hidden shadow-inner border border-gray-300 relative">
-                  <PlayCanvas
-                    positions={positions}
-                    onChange={handleChange}
-                    readOnly={editMode === 'draw'}
-                  />
+              <div className={`absolute inset-0 bg-gray-200 flex ${drawSurface !== 'field' ? 'hidden' : ''}`}>
+                <div className="flex-1 p-3 overflow-hidden">
+                  <div className="w-full h-full rounded overflow-hidden shadow-inner border border-gray-300 relative">
+                    <PlayCanvas
+                      positions={positions.map(p => {
+                        if (Object.keys(keyframes).length === 0) return p
+                        const interp = interpolatePosition(p.id, p)
+                        return { ...p, x: interp.x, y: interp.y }
+                      })}
+                      onChange={editMode === 'track' ? () => {} : handleChange}
+                      onSelect={setActiveTrackedId}
+                      selectedId={activeTrackedId}
+                      onPositionDrag={(id, x, y) => {
+                        if (editMode !== 'track') return
+                        setActiveTrackedId(id)
+                        recordKeyframe(id, x, y)
+                      }}
+                      readOnly={editMode === 'draw'}
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -315,13 +465,15 @@ export default function PlayEditorPage() {
                     style={{ pointerEvents: 'none' }}
                   />
                   {/* Player dots overlay */}
-                  {positions.map(pos => (
+                  {positions.map(pos => {
+                    const interpPos = Object.keys(keyframes).length > 0 ? interpolatePosition(pos.id, pos) : pos
+                    return (
                     <div
                       key={pos.id}
                       style={{
                         position: 'absolute',
-                        left: `${pos.x}%`,
-                        top: `${pos.y}%`,
+                        left: `${interpPos.x}%`,
+                        top: `${interpPos.y}%`,
                         transform: 'translate(-50%, -50%)',
                         width: DOT_SIZE,
                         height: DOT_SIZE,
@@ -342,7 +494,8 @@ export default function PlayEditorPage() {
                     >
                       {pos.label}
                     </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
@@ -357,16 +510,73 @@ export default function PlayEditorPage() {
                 Shared DrawingCanvas — always mounted, always rendered on top.
                 Because it's a sibling of the surface divs (not inside them),
                 it survives surface switches and holds its pixel data.
-                interactive=false hides the toolbar and blocks pointer events
-                so dots can be dragged underneath in Move mode.
+                interactive in Draw and Track modes; disabled in Move mode
+                so dots can be dragged underneath.
               */}
               <DrawingCanvas
                 ref={drawRef}
                 visible={true}
-                interactive={editMode === 'draw'}
+                interactive={editMode === 'draw' || editMode === 'track'}
                 onStrokeEnd={() => setSaved(false)}
               />
             </div>
+
+            {/* Field timeline (outside draw bounds) */}
+            {drawSurface === 'field' && (
+              <div className="bg-gray-900 px-4 py-2 flex items-center gap-3 shrink-0 border-t border-gray-800">
+                <button
+                  onClick={() => {
+                    setCurrentTime(0)
+                    setIsPlayingKeyframes(false)
+                  }}
+                  className="text-gray-400 hover:text-white text-lg leading-none"
+                  title="Jump to start"
+                >⏮</button>
+
+                <button
+                  onClick={() => setIsPlayingKeyframes(!isPlayingKeyframes)}
+                  className="text-white hover:text-brand-300 transition-colors flex-shrink-0"
+                  title={isPlayingKeyframes ? 'Pause playback' : 'Play keyframes'}
+                >
+                  {isPlayingKeyframes
+                    ? <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    : <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  }
+                </button>
+
+                <button
+                  onClick={() => {
+                    setCurrentTime(maxKeyframeTime)
+                    setIsPlayingKeyframes(false)
+                  }}
+                  className="text-gray-400 hover:text-white text-lg leading-none"
+                  title="Jump to end"
+                >⏭</button>
+
+                <span className="text-gray-400 text-xs font-mono w-16 shrink-0 text-center">
+                  {Math.floor(currentTime / 1000)}.{String(Math.floor((currentTime % 1000) / 100)).padStart(1, '0')}s
+                </span>
+
+                <div className="flex-1 flex items-center justify-center">
+                  <input
+                    type="range"
+                    min={0}
+                    max={maxKeyframeTime}
+                    step={10}
+                    value={currentTime}
+                    onChange={e => {
+                      setCurrentTime(Number(e.target.value))
+                      setIsPlayingKeyframes(false)
+                    }}
+                    className="w-full h-1 accent-blue-500 appearance-none"
+                  />
+                </div>
+
+                <span className="text-gray-400 text-xs font-mono w-16 shrink-0 text-right">
+                  {Math.floor(maxKeyframeTime / 1000)}.{String(Math.floor((maxKeyframeTime % 1000) / 100)).padStart(1, '0')}s
+                </span>
+              </div>
+            )}
 
             {/* Notes (field only) */}
             {drawSurface === 'field' && play && (
@@ -378,25 +588,7 @@ export default function PlayEditorPage() {
               </div>
             )}
           </div>
-        </div>
-      }
-
-      {tab === 'track' && (
-        <PlayerTracker
-          embedded
-          videoSrc={videoUrl}
-          playId={playId!}
-          playName={play?.name ?? 'Play'}
-          onClose={() => navigate(`/games/${gameId}`)}
-        />
-      )}
-
-      {tab === 'visualize' && (
-        <PlayVisualizer
-          playId={playId!}
-          playName={play?.name ?? 'Play'}
-        />
-      )}
+      </div>
     </div>
   )
 }

@@ -94,7 +94,7 @@ export default function VideoPlayer({ src, onTimeUpdate, seekTo, markers = [], s
                 title={m.label}
                 onClick={() => onMarkerClick?.(m.timestamp)}
                 style={{ left: `${(m.timestamp / duration) * 100}%` }}
-                className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-2.5 h-2.5 rounded-full bg-yellow-400 border border-yellow-600 hover:bg-yellow-300 transition-colors z-10 pointer-events-auto"
+                className="absolute top-1/2 -translate-y-1/3 -translate-x-1 w-1 h-4 bg-yellow-400 border border-yellow-600 hover:bg-yellow-300 transition-colors z-10 pointer-events-auto"
               />
             ))}
           </div>
