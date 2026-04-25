@@ -86,7 +86,8 @@ export class SupabasePlayRepository implements IPlayRepository {
   }
 
   async replacePositions(playId: string, positions: CreatePlayerPositionInput[]): Promise<PlayerPosition[]> {
-    await supabase.from('player_positions').delete().eq('play_id', playId)
+    const { error: deleteError } = await supabase.from('player_positions').delete().eq('play_id', playId)
+    if (deleteError) throw deleteError
     if (positions.length === 0) return []
     const { data, error } = await supabase
       .from('player_positions')

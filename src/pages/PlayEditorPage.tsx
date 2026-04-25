@@ -53,11 +53,13 @@ export default function PlayEditorPage() {
   const [isPlayingKeyframes, setIsPlayingKeyframes] = useState(false)
   const [maxKeyframeTime, setMaxKeyframeTime] = useState(() => {
     const times = Object.values(keyframes).flat().map(kf => kf.time_ms)
-    return times.length > 0 ? Math.max(...times) : 10000
+    return Math.max(10000, times.length > 0 ? Math.max(...times) + 1000 : 0)
   })
 
   // Single shared drawing canvas — lives across both field and video surfaces
   const drawRef = useRef<DrawingCanvasHandle>(null)
+  const positionsRef = useRef(positions)
+  positionsRef.current = positions
   const videoOverlayRef = useRef<HTMLDivElement>(null)
   const videoDragging = useRef<{ id: string } | null>(null)
   const keyframePlaybackRef = useRef<number | null>(null)
@@ -66,10 +68,19 @@ export default function PlayEditorPage() {
   const play = plays.find(p => p.id === playId)
   const videoUrl = game ? gameService.getVideoUrl(game) : null
 
-  // Load saved drawing when play data arrives
+  // Load saved drawing + keyframes when play data arrives
   useEffect(() => {
     if (!play) return
     if (play.drawing_data) drawRef.current?.loadDataUrl(play.drawing_data)
+    if (play.tracking_data) {
+      try {
+        const kf = JSON.parse(play.tracking_data)
+        setKeyframes(kf)
+        const times = Object.values(kf as Record<string, Array<{ time_ms: number }>>).flat().map(k => k.time_ms)
+        setMaxKeyframeTime(Math.max(10000, times.length > 0 ? Math.max(...times) + 1000 : 0))
+        localStorage.setItem(`keyframes_${playId}`, play.tracking_data)
+      } catch { /* ignore */ }
+    }
   }, [play?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = useCallback((updated: PlayerPosition[]) => {
@@ -79,13 +90,13 @@ export default function PlayEditorPage() {
 
   useEffect(() => {
     if (editMode !== 'track') setActiveTrackedId(null)
-    // When entering track mode, ensure all players have a keyframe at t=0
+    // When entering track mode, ensure all players have a keyframe at t=0.
+    // Use positionsRef so this effect doesn't re-run on every drag.
     if (editMode === 'track') {
       setKeyframes(prev => {
         const next = { ...prev }
-        positions.forEach(pos => {
+        positionsRef.current.forEach(pos => {
           if (!next[pos.id]) next[pos.id] = []
-          // Add t=0 keyframe if it doesn't exist
           if (!next[pos.id].some(kf => kf.time_ms === 0)) {
             next[pos.id].unshift({ time_ms: 0, x: pos.x, y: pos.y })
           }
@@ -94,7 +105,7 @@ export default function PlayEditorPage() {
         return next
       })
     }
-  }, [editMode, positions, playId])
+  }, [editMode, playId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const addDot = (team: Team) => {
     // Restrict disc to max 1
@@ -110,6 +121,15 @@ export default function PlayEditorPage() {
         : '',
     }
     setPositions(prev => [...prev, newPos])
+    // If already in track mode, give the new dot a t=0 keyframe immediately
+    if (editMode === 'track') {
+      setKeyframes(prev => {
+        const next = { ...prev }
+        next[newPos.id] = [{ time_ms: 0, x: newPos.x, y: newPos.y }]
+        localStorage.setItem(`keyframes_${playId}`, JSON.stringify(next))
+        return next
+      })
+    }
     setSaved(false)
   }
 
@@ -209,10 +229,36 @@ export default function PlayEditorPage() {
     if (!playId) return
     setSaving(true)
     try {
+      // Merge any uncommitted staged keyframes so Save doesn't require a separate
+      // "Save Current Keyframes" click first.
+      const mergedKeyframes = { ...keyframes }
+      Object.entries(stagedKeyframesByTime).forEach(([timeStr, posMap]) => {
+        const t = Number(timeStr)
+        Object.entries(posMap).forEach(([posId, { x, y }]) => {
+          mergedKeyframes[posId] = [...(mergedKeyframes[posId] || [])]
+          const idx = mergedKeyframes[posId].findIndex(kf => kf.time_ms === t)
+          if (idx >= 0) mergedKeyframes[posId][idx] = { time_ms: t, x, y }
+          else mergedKeyframes[posId].push({ time_ms: t, x, y })
+        })
+      })
+
       const savedPositions = await ps.savePositions(playId, positions.map(({ id: _id, ...rest }) => rest))
+
+      // replacePositions regenerates IDs — remap keyframes so they stay linked
+      const idMap = new Map(positions.map((p, i) => [p.id, savedPositions[i].id]))
+      const remappedKeyframes: typeof keyframes = {}
+      Object.entries(mergedKeyframes).forEach(([oldId, kfs]) => {
+        remappedKeyframes[idMap.get(oldId) ?? oldId] = kfs
+      })
+
       setPositions(savedPositions)
+      setKeyframes(remappedKeyframes)
+      setStagedKeyframesByTime({})
+      localStorage.setItem(`keyframes_${playId}`, JSON.stringify(remappedKeyframes))
+
       await playService.updatePlay(playId, {
         drawing_data: drawRef.current?.getDataUrl() ?? null,
+        tracking_data: Object.keys(remappedKeyframes).length > 0 ? JSON.stringify(remappedKeyframes) : null,
       })
       setSaved(true)
     } catch (e) {
@@ -461,7 +507,7 @@ export default function PlayEditorPage() {
                         const display = getDisplayPosition(p)
                         return { ...p, x: display.x, y: display.y }
                       })}
-                      onChange={editMode === 'track' ? () => {} : handleChange}
+                      onChange={editMode !== 'track' ? handleChange : () => {}}
                       onSelect={setActiveTrackedId}
                       selectedId={activeTrackedId}
                       onPositionDrag={(id, x, y) => {
@@ -549,9 +595,9 @@ export default function PlayEditorPage() {
               */}
               <DrawingCanvas
                 ref={drawRef}
-                visible={true}
-                interactive={editMode === 'draw' || editMode === 'track'}
-                defaultTool={editMode === 'track' ? 'select' : 'pen'}
+                visible={editMode === 'draw'}
+                interactive={editMode === 'draw'}
+                defaultTool='pen'
                 onStrokeEnd={() => setSaved(false)}
               />
             </div>

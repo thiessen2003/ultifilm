@@ -60,8 +60,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
     const startX     = useRef(0)
     const startY     = useRef(0)
     const snapshot   = useRef<ImageData | null>(null)
-    const textInpRef = useRef<HTMLInputElement | null>(null)
-    const toolRef    = useRef<Tool>('select')
+    const toolRef    = useRef<Tool>('pen')
     const colorRef   = useRef(COLORS[0])
     const sizeRef    = useRef(3)
 
@@ -229,56 +228,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
       }
     }
 
-    const placeTextInput = (x: number, y: number) => {
-      if (textInpRef.current) textInpRef.current.remove()
-      const canvas  = canvasRef.current!
-      const wrapper = wrapperRef.current!
-      const rect    = canvas.getBoundingClientRect()
-      const scaleX  = rect.width  / canvas.width
-      const scaleY  = rect.height / canvas.height
-      const wRect   = wrapper.getBoundingClientRect()
-
-      const inp = document.createElement('input')
-      inp.type        = 'text'
-      inp.placeholder = 'Type here…'
-      Object.assign(inp.style, {
-        position:   'absolute',
-        left:       (x * scaleX + rect.left - wRect.left) + 'px',
-        top:        (y * scaleY + rect.top  - wRect.top)  + 'px',
-        background: 'rgba(255,255,255,0.15)',
-        border:     `1.5px dashed ${colorRef.current}`,
-        color:      colorRef.current,
-        fontSize:   Math.max(14, sizeRef.current * 4) + 'px',
-        fontFamily: 'sans-serif',
-        fontWeight: '600',
-        padding:    '2px 6px',
-        borderRadius: '4px',
-        outline:    'none',
-        minWidth:   '80px',
-        zIndex:     '10',
-      })
-      wrapper.appendChild(inp)
-      textInpRef.current = inp
-      inp.focus()
-
-      const commit = () => {
-        if (inp.value.trim()) {
-          const ctx = canvas.getContext('2d')!
-          saveUndo()
-          ctx.globalAlpha = 1
-          ctx.font      = `600 ${Math.max(14, sizeRef.current * 4)}px sans-serif`
-          ctx.fillStyle = colorRef.current
-          ctx.fillText(inp.value.trim(), x, y + Math.max(14, sizeRef.current * 4))
-          onStrokeEnd?.()
-        }
-        inp.remove(); textInpRef.current = null
-      }
-      inp.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') commit()
-        if (e.key === 'Escape') { inp.remove(); textInpRef.current = null }
-      })
-      inp.addEventListener('blur', commit)
-    }
 
     // ── Pointer events (native to support passive:false for touch) ────
     useEffect(() => {
@@ -292,11 +241,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         if (tool === 'select') {
           return
         }
-        if (tool === 'text') {
-          const pos = getPos(e)
-          placeTextInput(pos.x, pos.y)
-          return
-        }
+
         saveUndo()
         isDrawing.current = true
         const pos = getPos(e)

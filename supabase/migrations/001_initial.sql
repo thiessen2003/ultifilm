@@ -80,6 +80,7 @@ CREATE TRIGGER games_updated_at
 -- ------------------------------------------------------------
 ALTER TABLE plays ADD COLUMN IF NOT EXISTS drawing_data TEXT;
 ALTER TABLE plays ADD COLUMN IF NOT EXISTS video_drawing_data TEXT;
+ALTER TABLE plays ADD COLUMN IF NOT EXISTS tracking_data TEXT;
 
 -- ------------------------------------------------------------
 -- annotations  (added in refactor)
