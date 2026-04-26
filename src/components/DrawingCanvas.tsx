@@ -326,11 +326,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
       const onDown = (e: MouseEvent | TouchEvent) => {
         if (!visible) return
         const tool = toolRef.current
-        if (tool === 'text') {
-          const pos = getPos(e)
-          placeTextInput(pos.x, pos.y)
-          return
-        }
+        if (tool === 'text') return  // handled by the React overlay div
         saveUndo()
         isDrawing.current = true
         const pos = getPos(e)
@@ -442,9 +438,11 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
           style={{
             position: 'absolute', inset: 0, width: '100%', height: '100%',
             display: visible ? 'block' : 'none',
-            cursor: activeTool === 'eraser' ? 'none' : 'crosshair',
+            cursor: activeTool === 'eraser' ? 'none'
+                  : activeTool === 'text'   ? 'text'
+                  : 'crosshair',
             zIndex: 10,
-            pointerEvents: interactive === false ? 'none' : 'auto',
+            pointerEvents: interactive === false || activeTool === 'text' ? 'none' : 'auto',
           }}
         />
 
@@ -459,6 +457,24 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
                 borderRadius: '50%',
                 transform: 'translate(-50%, -50%)',
                 boxShadow: '0 0 0 1px rgba(0,0,0,0.4)',
+              }}
+            />
+          )}
+
+          {/* Click-capture overlay for text tool — uses React onClick (more reliable than native events) */}
+          {activeTool === 'text' && interactive && !textInput && (
+            <div
+              style={{ position: 'absolute', inset: 0, zIndex: 11, cursor: 'text' }}
+              onClick={(e) => {
+                const wrapper = wrapperRef.current
+                const canvas  = canvasRef.current
+                if (!wrapper || !canvas) return
+                const rect = wrapper.getBoundingClientRect()
+                const scaleX = canvas.width  > 0 ? canvas.width  / rect.width  : 1
+                const scaleY = canvas.height > 0 ? canvas.height / rect.height : 1
+                const x = (e.clientX - rect.left) * scaleX
+                const y = (e.clientY - rect.top)  * scaleY
+                placeTextInput(x, y)
               }}
             />
           )}
