@@ -517,20 +517,22 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
 
           <div className="w-7 h-px bg-gray-200 my-1" />
 
-          {/* Colors — only shown when a drawing tool is active */}
+          {/* Colors — 3×2 circle grid */}
           {true && (
             <>
-              {COLORS.map(c => (
-                <button
-                  key={c}
-                  title={c}
-                  onClick={() => setActiveColor(c)}
-                  style={{ backgroundColor: c }}
-                  className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${
-                    activeColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
-                  } ${c === '#ffffff' ? '!border-gray-300' : ''}`}
-                />
-              ))}
+              <div className="grid grid-cols-3 gap-1.5 px-1">
+                {COLORS.map(c => (
+                  <button
+                    key={c}
+                    title={c}
+                    onClick={() => setActiveColor(c)}
+                    style={{ backgroundColor: c }}
+                    className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
+                      activeColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
+                    } ${c === '#ffffff' ? '!border-gray-300' : ''}`}
+                  />
+                ))}
+              </div>
 
               <div className="w-7 h-px bg-gray-200 my-1" />
 
