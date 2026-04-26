@@ -493,21 +493,21 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         </div>
 
         {/* Right toolbar — only shown when interactive (draw mode) */}
-        {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-16 bg-white border-l border-gray-200 flex flex-col items-center pt-1.5 pb-2 gap-0.5 overflow-y-auto z-20">
+        {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-16 bg-white border-l border-gray-200 flex flex-col items-center pt-2 pb-2 gap-1 overflow-y-auto z-20">
           {/* Tools */}
           {TOOLS.map(t => (
             <button
               key={t.id}
               title={t.tip}
               onClick={() => setActiveTool(t.id)}
-              className={`w-14 h-9 rounded flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              className={`w-14 h-10 rounded flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 activeTool === t.id
                   ? 'bg-brand-500 text-white'
                   : 'text-gray-500 hover:bg-brand-50 hover:text-brand-500'
               }`}
             >
-              <span className="w-3.5 h-3.5">{t.svg}</span>
-              <span className="text-[9px] font-semibold leading-none">{t.tip.split(' ')[0]}</span>
+              <span className="w-4 h-4">{t.svg}</span>
+              <span className="text-[10px] font-semibold leading-none">{t.tip.split(' ')[0]}</span>
             </button>
           ))}
 
