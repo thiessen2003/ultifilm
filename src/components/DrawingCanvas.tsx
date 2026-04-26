@@ -3,6 +3,8 @@ import {
   useImperativeHandle, forwardRef,
 } from 'react'
 
+type TextInput = { left: number; top: number; canvasX: number; canvasY: number }
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tool =
   | 'pen' | 'dashed' | 'spray'
@@ -86,9 +88,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
     const canvasRef   = useRef<HTMLCanvasElement>(null)
     const wrapperRef  = useRef<HTMLDivElement>(null)
     const eraserRef   = useRef<HTMLDivElement>(null)
+    const textAreaRef = useRef<HTMLTextAreaElement>(null)
     const [activeTool,  setActiveTool]  = useState<Tool>(defaultTool)
     const [activeColor, setActiveColor] = useState(COLORS[0])
     const [strokeWidth, setStrokeWidth] = useState(3)
+    const [textInput,   setTextInput]   = useState<TextInput | null>(null)
+    const [textValue,   setTextValue]   = useState('')
 
     // Mutable drawing state (no re-renders needed)
     const undoStack  = useRef<ImageData[]>([])
@@ -100,7 +105,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
     const toolRef    = useRef<Tool>('pen')
     const colorRef   = useRef(COLORS[0])
     const sizeRef    = useRef(3)
-    const textInputRef = useRef<HTMLTextAreaElement | null>(null)
 
     // Keep refs in sync with state
     useEffect(() => { toolRef.current  = activeTool  }, [activeTool])
@@ -270,88 +274,49 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
       }
     }
 
+    // Open the React-managed textarea at the clicked canvas position
     const placeTextInput = useCallback((x: number, y: number) => {
       const canvas = canvasRef.current
       const wrapper = wrapperRef.current
       if (!canvas || !wrapper) return
-
-      textInputRef.current?.remove()
-      textInputRef.current = null
-
       const rect = canvas.getBoundingClientRect()
       const wrapperRect = wrapper.getBoundingClientRect()
-      const scaleX = rect.width / canvas.width
-      const scaleY = rect.height / canvas.height
-
-      const input = document.createElement('textarea')
-      input.placeholder = 'Type text and press Enter'
-      Object.assign(input.style, {
-        position: 'absolute',
-        left: `${x * scaleX + rect.left - wrapperRect.left}px`,
-        top: `${y * scaleY + rect.top - wrapperRect.top}px`,
-        background: 'rgba(255,255,255,0.15)',
-        border: `1.5px dashed ${colorRef.current}`,
-        color: colorRef.current,
-        fontSize: `${Math.max(14, sizeRef.current * 4)}px`,
-        fontFamily: 'DM Sans, sans-serif',
-        fontWeight: '600',
-        padding: '2px 6px',
-        borderRadius: '4px',
-        outline: 'none',
-        minWidth: '80px',
-        minHeight: '32px',
-        resize: 'none',
-        overflow: 'hidden',
-        zIndex: '12',
+      const scaleX = canvas.width  > 0 ? rect.width  / canvas.width  : 1
+      const scaleY = canvas.height > 0 ? rect.height / canvas.height : 1
+      setTextInput({
+        left:    x * scaleX + rect.left - wrapperRect.left,
+        top:     y * scaleY + rect.top  - wrapperRect.top,
+        canvasX: x,
+        canvasY: y,
       })
+      setTextValue('')
+    }, [])
 
-      wrapper.appendChild(input)
-      textInputRef.current = input
-      input.focus()
+    // Focus the textarea as soon as it mounts
+    useEffect(() => {
+      if (textInput) textAreaRef.current?.focus()
+    }, [textInput])
 
-      let committed = false
-      const commit = () => {
-        if (committed) return
-        committed = true
-        const value = input.value.trim()
-        if (value) {
-          const ctx = canvas.getContext('2d')!
-          saveUndo()
-          applyStyle(ctx)
-          ctx.globalAlpha = 1
-          const fontSize = Math.max(14, sizeRef.current * 4)
-          ctx.font = `600 ${fontSize}px 'DM Sans', sans-serif`
-          ctx.fillStyle = colorRef.current
-          value.split('\n').forEach((line, index) => {
-            ctx.fillText(line, x, y + fontSize + index * (fontSize + 4))
-          })
-          onStrokeEnd?.()
-        }
-        input.remove()
-        if (textInputRef.current === input) textInputRef.current = null
+    const commitText = useCallback(() => {
+      const canvas = canvasRef.current
+      if (!canvas || !textInput) return
+      const value = textValue.trim()
+      if (value) {
+        const ctx = canvas.getContext('2d')!
+        saveUndo()
+        applyStyle(ctx)
+        ctx.globalAlpha = 1
+        const fontSize = Math.max(14, sizeRef.current * 4)
+        ctx.font = `600 ${fontSize}px 'DM Sans', sans-serif`
+        ctx.fillStyle = colorRef.current
+        value.split('\n').forEach((line, i) => {
+          ctx.fillText(line, textInput.canvasX, textInput.canvasY + fontSize + i * (fontSize + 4))
+        })
+        onStrokeEnd?.()
       }
-
-      input.addEventListener('mousedown', (e) => e.stopPropagation())
-      input.addEventListener('pointerdown', (e) => e.stopPropagation())
-      input.addEventListener('input', () => {
-        input.style.height = 'auto'
-        input.style.height = `${Math.max(32, input.scrollHeight)}px`
-      })
-      input.addEventListener('keydown', (e) => {
-        e.stopPropagation() // prevent undo/redo shortcuts firing while typing
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault()
-          commit()
-        } else if (e.key === 'Escape') {
-          committed = true
-          input.remove()
-          if (textInputRef.current === input) textInputRef.current = null
-        }
-      })
-      // Delay blur listener so the mousedown→mouseup cycle doesn't fire it
-      // immediately before the user has a chance to type anything
-      setTimeout(() => input.addEventListener('blur', commit), 200)
-    }, [onStrokeEnd])
+      setTextInput(null)
+      setTextValue('')
+    }, [textInput, textValue, onStrokeEnd])
 
     // ── Pointer events (native to support passive:false for touch) ────
     useEffect(() => {
@@ -462,7 +427,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         canvas.removeEventListener('touchend',   onUp   as EventListener)
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [visible, onStrokeEnd, placeTextInput])
+    }, [visible, onStrokeEnd])
 
     const eraserSize = strokeWidth * 8
     const isPassThrough = interactive === false
@@ -494,6 +459,43 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
                 borderRadius: '50%',
                 transform: 'translate(-50%, -50%)',
                 boxShadow: '0 0 0 1px rgba(0,0,0,0.4)',
+              }}
+            />
+          )}
+
+          {/* Text input overlay — React-managed for reliable focus */}
+          {textInput && (
+            <textarea
+              ref={textAreaRef}
+              value={textValue}
+              onChange={e => setTextValue(e.target.value)}
+              placeholder="Type and press Enter"
+              onKeyDown={e => {
+                e.stopPropagation()
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitText() }
+                if (e.key === 'Escape') { setTextInput(null); setTextValue('') }
+              }}
+              onBlur={commitText}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
+              rows={1}
+              style={{
+                position: 'absolute',
+                left: textInput.left,
+                top:  textInput.top,
+                zIndex: 12,
+                background: 'rgba(255,255,255,0.15)',
+                border: `1.5px dashed ${activeColor}`,
+                color: activeColor,
+                fontSize: Math.max(14, strokeWidth * 4),
+                fontFamily: 'DM Sans, sans-serif',
+                fontWeight: 600,
+                padding: '2px 6px',
+                borderRadius: 4,
+                outline: 'none',
+                minWidth: 80,
+                resize: 'none',
+                overflow: 'hidden',
               }}
             />
           )}
