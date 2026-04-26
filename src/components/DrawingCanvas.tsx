@@ -7,7 +7,7 @@ type TextInput = { left: number; top: number; canvasX: number; canvasY: number }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tool =
-  | 'pen' | 'dashed' | 'spray'
+  | 'pen' | 'dashed'
   | 'eraser' | 'text' | 'arrow'
   | 'circle' | 'square' | 'triangle'
 
@@ -38,15 +38,6 @@ const TOOLS: { id: Tool; tip: string; svg: React.ReactNode }[] = [
       <line x1="3" y1="12" x2="7" y2="12"/>
       <line x1="10" y1="12" x2="14" y2="12"/>
       <line x1="17" y1="12" x2="21" y2="12"/>
-    </svg> },
-  { id: 'spray', tip: 'Spray paint',
-    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="13" width="8" height="8" rx="1"/>
-      <path d="M11 17h2a2 2 0 0 0 2-2v-1a2 2 0 0 1 2-2h0"/>
-      <line x1="18" y1="8" x2="18" y2="12"/>
-      <circle cx="16" cy="7" r="1" fill="currentColor"/>
-      <circle cx="20" cy="7" r="1" fill="currentColor"/>
-      <circle cx="18" cy="5" r="1" fill="currentColor"/>
     </svg> },
   { id: 'eraser', tip: 'Eraser',
     svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -79,7 +70,7 @@ const TOOLS: { id: Tool; tip: string; svg: React.ReactNode }[] = [
     </svg> },
 ]
 
-const FREE_TOOLS: Tool[] = ['pen','dashed','spray','eraser']
+const FREE_TOOLS: Tool[] = ['pen','dashed','eraser']
 const SHAPE_TOOLS: Tool[] = ['arrow','circle','square','triangle']
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -224,9 +215,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
           ctx.lineWidth = size
           ctx.setLineDash([size * 4, size * 2])
           break
-        case 'spray':
-          ctx.lineWidth = 1
-          break
         default:
           ctx.lineWidth = size
       }
@@ -358,19 +346,6 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
           applyStyle(ctx)
           ctx.lineTo(pos.x, pos.y); ctx.stroke()
           ctx.beginPath(); ctx.moveTo(pos.x, pos.y)
-        } else if (tool === 'spray') {
-          applyStyle(ctx)
-          const density = 20, radius = sizeRef.current * 5
-          ctx.globalAlpha = 0.6
-          for (let i = 0; i < density; i++) {
-            const angle = Math.random() * Math.PI * 2
-            const r     = Math.random() * radius
-            ctx.fillStyle = colorRef.current
-            ctx.beginPath()
-            ctx.arc(pos.x + r * Math.cos(angle), pos.y + r * Math.sin(angle), Math.random() * 1.5 + 0.5, 0, Math.PI * 2)
-            ctx.fill()
-          }
-          ctx.globalAlpha = 1
         } else if (tool === 'eraser') {
           const s = sizeRef.current * 8
           ctx.clearRect(pos.x - s / 2, pos.y - s / 2, s, s)
@@ -518,61 +493,57 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         </div>
 
         {/* Right toolbar — only shown when interactive (draw mode) */}
-        {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-20 bg-white border-l border-gray-200 flex flex-col items-center py-2 gap-1 overflow-y-auto z-20">
+        {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-16 bg-white border-l border-gray-200 flex flex-col items-center pt-1.5 pb-2 gap-0.5 overflow-y-auto z-20">
           {/* Tools */}
           {TOOLS.map(t => (
             <button
               key={t.id}
               title={t.tip}
               onClick={() => setActiveTool(t.id)}
-              className={`w-[4.5rem] min-h-12 rounded flex flex-col items-center justify-center gap-0.5 transition-colors ${
+              className={`w-14 h-9 rounded flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 activeTool === t.id
                   ? 'bg-brand-500 text-white'
                   : 'text-gray-500 hover:bg-brand-50 hover:text-brand-500'
               }`}
             >
-              <span className="w-4 h-4">{t.svg}</span>
-              <span className="text-[10px] font-semibold leading-none">{t.tip.split(' ')[0]}</span>
+              <span className="w-3.5 h-3.5">{t.svg}</span>
+              <span className="text-[9px] font-semibold leading-none">{t.tip.split(' ')[0]}</span>
             </button>
           ))}
 
-          <div className="w-7 h-px bg-gray-200 my-1" />
+          <div className="w-8 h-px bg-gray-200 my-1" />
 
-          {/* Colors — 3×2 circle grid */}
-          {true && (
-            <>
-              <div className="grid grid-cols-2 gap-1.5 px-1.5">
-                {COLORS.map(c => (
-                  <button
-                    key={c}
-                    title={c}
-                    onClick={() => setActiveColor(c)}
-                    style={{ backgroundColor: c }}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
-                      activeColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
-                    } ${c === '#ffffff' ? '!border-gray-300' : ''}`}
-                  />
-                ))}
-              </div>
-
-              <div className="w-7 h-px bg-gray-200 my-1" />
-
-              {/* Stroke size */}
-              <span className="text-gray-400 font-mono" style={{ fontSize: 9 }}>{strokeWidth}px</span>
-              <input
-                type="range" min={1} max={20} value={strokeWidth}
-                onChange={e => setStrokeWidth(Number(e.target.value))}
-                className="accent-blue-600"
-                style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 4, height: 56, cursor: 'pointer' }}
+          {/* Colors — 2×3 grid */}
+          <div className="grid grid-cols-2 gap-1 px-1">
+            {COLORS.map(c => (
+              <button
+                key={c}
+                title={c}
+                onClick={() => setActiveColor(c)}
+                style={{ backgroundColor: c }}
+                className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${
+                  activeColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
+                } ${c === '#ffffff' ? '!border-gray-300' : ''}`}
               />
+            ))}
+          </div>
 
-              <div className="w-7 h-px bg-gray-200 my-1" />
-            </>
-          )}
+          <div className="w-8 h-px bg-gray-200 my-1" />
+
+          {/* Stroke size */}
+          <span className="text-gray-400 font-mono" style={{ fontSize: 8 }}>{strokeWidth}px</span>
+          <input
+            type="range" min={1} max={20} value={strokeWidth}
+            onChange={e => setStrokeWidth(Number(e.target.value))}
+            className="accent-blue-600"
+            style={{ writingMode: 'vertical-lr', direction: 'rtl', width: 4, height: 48, cursor: 'pointer' }}
+          />
+
+          <div className="w-8 h-px bg-gray-200 my-1" />
 
           {/* Undo / Redo */}
-          <button onClick={undo} title="Undo (⌘Z)" className="w-9 h-7 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded hover:bg-blue-50">↩</button>
-          <button onClick={redo} title="Redo (⌘Y)" className="w-9 h-7 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded hover:bg-blue-50">↪</button>
+          <button onClick={undo} title="Undo (⌘Z)" className="w-8 h-6 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded hover:bg-blue-50">↩</button>
+          <button onClick={redo} title="Redo (⌘Y)" className="w-8 h-6 text-xs text-gray-500 hover:text-blue-600 border border-gray-200 rounded hover:bg-blue-50 mt-0.5">↪</button>
 
           {/* Clear */}
           <button
@@ -585,9 +556,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
               onStrokeEnd?.()
             }}
             title="Clear all"
-            className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors mt-1"
+            className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors mt-0.5"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
               <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
             </svg>
           </button>
