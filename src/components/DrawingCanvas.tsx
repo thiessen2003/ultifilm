@@ -23,7 +23,7 @@ interface Props {
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const COLORS = ['#E53535','#3543D0','#22c55e','#f59e0b','#ffffff','#111111']
+const COLORS = ['#E53535','#3543D0','#ffffff','#111111','#f97316','#9333ea']
 
 const TOOLS: { id: Tool; tip: string; svg: React.ReactNode }[] = [
   // ── Freehand ────────────────────────────────────────────────────────────────
@@ -520,14 +520,14 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
           {/* Colors — 3×2 circle grid */}
           {true && (
             <>
-              <div className="grid grid-cols-3 gap-1.5 px-1">
+              <div className="grid grid-cols-2 gap-1.5 px-1.5">
                 {COLORS.map(c => (
                   <button
                     key={c}
                     title={c}
                     onClick={() => setActiveColor(c)}
                     style={{ backgroundColor: c }}
-                    className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${
+                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${
                       activeColor === c ? 'border-gray-800 scale-110' : 'border-transparent'
                     } ${c === '#ffffff' ? '!border-gray-300' : ''}`}
                   />
