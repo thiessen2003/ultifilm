@@ -338,6 +338,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         input.style.height = `${Math.max(32, input.scrollHeight)}px`
       })
       input.addEventListener('keydown', (e) => {
+        e.stopPropagation() // prevent undo/redo shortcuts firing while typing
         if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault()
           commit()
@@ -347,7 +348,9 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
           if (textInputRef.current === input) textInputRef.current = null
         }
       })
-      input.addEventListener('blur', commit)
+      // Delay blur listener so the mousedown→mouseup cycle doesn't fire it
+      // immediately before the user has a chance to type anything
+      setTimeout(() => input.addEventListener('blur', commit), 200)
     }, [onStrokeEnd])
 
     // ── Pointer events (native to support passive:false for touch) ────
