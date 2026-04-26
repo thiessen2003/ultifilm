@@ -5,9 +5,9 @@ import {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type Tool =
-  | 'select'
-  | 'pen' | 'marker' | 'dashed' | 'calligraphy' | 'spray'
-  | 'eraser' | 'text' | 'arrow' | 'circle' | 'rect' | 'triangle'
+  | 'pen' | 'dashed' | 'spray'
+  | 'eraser' | 'text' | 'arrow'
+  | 'circle' | 'square' | 'triangle'
 
 export interface DrawingCanvasHandle {
   getDataUrl: () => string | null
@@ -26,22 +26,59 @@ interface Props {
 const COLORS = ['#E53535','#3543D0','#22c55e','#f59e0b','#ffffff','#111111']
 
 const TOOLS: { id: Tool; tip: string; svg: React.ReactNode }[] = [
-  { id: 'select',      tip: 'Select',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6-6 6 6M12 3v18M3 18h18"/></svg> },
-  { id: 'pen',         tip: 'Pen',         svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg> },
-  { id: 'marker',      tip: 'Marker',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21l1.9-5.7a8.5 8.5 0 113.8 3.8z"/></svg> },
-  { id: 'dashed',      tip: 'Dashed',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="12" x2="7" y2="12"/><line x1="10" y1="12" x2="14" y2="12"/><line x1="17" y1="12" x2="21" y2="12"/></svg> },
-  { id: 'calligraphy', tip: 'Calligraphy', svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20L20 4"/><path d="M4 20l4-1-3-3z"/></svg> },
-  { id: 'spray',       tip: 'Spray',       svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="8" cy="15" r="4"/><line x1="12" y1="15" x2="20" y2="15"/><line x1="17" y1="9" x2="17" y2="13"/></svg> },
-  { id: 'eraser',      tip: 'Eraser',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20H7L3 16l9.5-9.5 7.5 7.5-2.5 2.5"/><path d="M6.5 17.5l4-4"/></svg> },
-  { id: 'text',        tip: 'Text',        svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg> },
-  { id: 'arrow',       tip: 'Arrow',       svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> },
-  { id: 'circle',      tip: 'Circle',      svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/></svg> },
-  { id: 'rect',        tip: 'Rectangle',   svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg> },
-  { id: 'triangle',    tip: 'Triangle',    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 22 22 22"/></svg> },
+  // ── Freehand ────────────────────────────────────────────────────────────────
+  { id: 'pen', tip: 'Pen',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+    </svg> },
+  { id: 'dashed', tip: 'Dashed line',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <line x1="3" y1="12" x2="7" y2="12"/>
+      <line x1="10" y1="12" x2="14" y2="12"/>
+      <line x1="17" y1="12" x2="21" y2="12"/>
+    </svg> },
+  { id: 'spray', tip: 'Spray paint',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="13" width="8" height="8" rx="1"/>
+      <path d="M11 17h2a2 2 0 0 0 2-2v-1a2 2 0 0 1 2-2h0"/>
+      <line x1="18" y1="8" x2="18" y2="12"/>
+      <circle cx="16" cy="7" r="1" fill="currentColor"/>
+      <circle cx="20" cy="7" r="1" fill="currentColor"/>
+      <circle cx="18" cy="5" r="1" fill="currentColor"/>
+    </svg> },
+  { id: 'eraser', tip: 'Eraser',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20 20H7L3 16l9.5-9.5 7.5 7.5-2.5 2.5"/>
+      <path d="M6.5 17.5l4-4"/>
+    </svg> },
+  { id: 'text', tip: 'Text',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="4 7 4 4 20 4 20 7"/>
+      <line x1="9" y1="20" x2="15" y2="20"/>
+      <line x1="12" y1="4" x2="12" y2="20"/>
+    </svg> },
+  { id: 'arrow', tip: 'Arrow',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"/>
+      <polyline points="12 5 19 12 12 19"/>
+    </svg> },
+  // ── Shapes ──────────────────────────────────────────────────────────────────
+  { id: 'circle', tip: 'Circle',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="12" cy="12" r="9"/>
+    </svg> },
+  { id: 'square', tip: 'Square',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+    </svg> },
+  { id: 'triangle', tip: 'Triangle',
+    svg: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 3 22 21 2 21"/>
+    </svg> },
 ]
 
-const FREE_TOOLS: Tool[] = ['pen','marker','dashed','calligraphy','spray','eraser']
-const SHAPE_TOOLS: Tool[] = ['arrow','circle','rect','triangle']
+const FREE_TOOLS: Tool[] = ['pen','dashed','spray','eraser']
+const SHAPE_TOOLS: Tool[] = ['arrow','circle','square','triangle']
 
 // ── Component ─────────────────────────────────────────────────────────────────
 const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
@@ -63,6 +100,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
     const toolRef    = useRef<Tool>('pen')
     const colorRef   = useRef(COLORS[0])
     const sizeRef    = useRef(3)
+    const textInputRef = useRef<HTMLTextAreaElement | null>(null)
 
     // Keep refs in sync with state
     useEffect(() => { toolRef.current  = activeTool  }, [activeTool])
@@ -178,19 +216,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
       ctx.globalAlpha = 1
       ctx.setLineDash([])
       switch (tool) {
-        case 'marker':
-          ctx.lineWidth   = size * 3
-          ctx.globalAlpha = 0.35
-          ctx.lineCap     = 'square'
-          break
         case 'dashed':
           ctx.lineWidth = size
           ctx.setLineDash([size * 4, size * 2])
           break
-        case 'calligraphy':
-          ctx.lineWidth   = size * 4
-          ctx.lineCap     = 'butt'
-          ctx.globalAlpha = 0.85
+        case 'spray':
+          ctx.lineWidth = 1
           break
         default:
           ctx.lineWidth = size
@@ -203,24 +234,35 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
       ctx.beginPath()
       switch (tool) {
         case 'arrow': {
-          const dx = x2 - x1, dy = y2 - y1
+          const dx = x2 - x1
+          const dy = y2 - y1
           const angle = Math.atan2(dy, dx)
-          const head  = Math.max(12, sizeRef.current * 4)
-          ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke()
+          const headLen = Math.max(12, sizeRef.current * 4)
+          ctx.moveTo(x1, y1)
+          ctx.lineTo(x2, y2)
+          ctx.stroke()
           ctx.beginPath()
           ctx.moveTo(x2, y2)
-          ctx.lineTo(x2 - head * Math.cos(angle - Math.PI / 6), y2 - head * Math.sin(angle - Math.PI / 6))
+          ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6))
           ctx.moveTo(x2, y2)
-          ctx.lineTo(x2 - head * Math.cos(angle + Math.PI / 6), y2 - head * Math.sin(angle + Math.PI / 6))
-          ctx.stroke(); break
+          ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6))
+          ctx.stroke()
+          break
         }
         case 'circle': {
           const rx = (x2 - x1) / 2, ry = (y2 - y1) / 2
           ctx.ellipse(x1 + rx, y1 + ry, Math.abs(rx), Math.abs(ry), 0, 0, Math.PI * 2)
           ctx.stroke(); break
         }
-        case 'rect':
-          ctx.strokeRect(x1, y1, x2 - x1, y2 - y1); break
+        case 'square': {
+          const dx = x2 - x1
+          const dy = y2 - y1
+          const side = Math.max(Math.abs(dx), Math.abs(dy))
+          const endX = x1 + Math.sign(dx || 1) * side
+          const endY = y1 + Math.sign(dy || 1) * side
+          ctx.strokeRect(x1, y1, endX - x1, endY - y1)
+          break
+        }
         case 'triangle':
           ctx.moveTo((x1 + x2) / 2, y1)
           ctx.lineTo(x2, y2); ctx.lineTo(x1, y2)
@@ -228,6 +270,85 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
       }
     }
 
+    const placeTextInput = useCallback((x: number, y: number) => {
+      const canvas = canvasRef.current
+      const wrapper = wrapperRef.current
+      if (!canvas || !wrapper) return
+
+      textInputRef.current?.remove()
+      textInputRef.current = null
+
+      const rect = canvas.getBoundingClientRect()
+      const wrapperRect = wrapper.getBoundingClientRect()
+      const scaleX = rect.width / canvas.width
+      const scaleY = rect.height / canvas.height
+
+      const input = document.createElement('textarea')
+      input.placeholder = 'Type text and press Enter'
+      Object.assign(input.style, {
+        position: 'absolute',
+        left: `${x * scaleX + rect.left - wrapperRect.left}px`,
+        top: `${y * scaleY + rect.top - wrapperRect.top}px`,
+        background: 'rgba(255,255,255,0.15)',
+        border: `1.5px dashed ${colorRef.current}`,
+        color: colorRef.current,
+        fontSize: `${Math.max(14, sizeRef.current * 4)}px`,
+        fontFamily: 'DM Sans, sans-serif',
+        fontWeight: '600',
+        padding: '2px 6px',
+        borderRadius: '4px',
+        outline: 'none',
+        minWidth: '80px',
+        minHeight: '32px',
+        resize: 'none',
+        overflow: 'hidden',
+        zIndex: '12',
+      })
+
+      wrapper.appendChild(input)
+      textInputRef.current = input
+      input.focus()
+
+      let committed = false
+      const commit = () => {
+        if (committed) return
+        committed = true
+        const value = input.value.trim()
+        if (value) {
+          const ctx = canvas.getContext('2d')!
+          saveUndo()
+          applyStyle(ctx)
+          ctx.globalAlpha = 1
+          const fontSize = Math.max(14, sizeRef.current * 4)
+          ctx.font = `600 ${fontSize}px 'DM Sans', sans-serif`
+          ctx.fillStyle = colorRef.current
+          value.split('\n').forEach((line, index) => {
+            ctx.fillText(line, x, y + fontSize + index * (fontSize + 4))
+          })
+          onStrokeEnd?.()
+        }
+        input.remove()
+        if (textInputRef.current === input) textInputRef.current = null
+      }
+
+      input.addEventListener('mousedown', (e) => e.stopPropagation())
+      input.addEventListener('pointerdown', (e) => e.stopPropagation())
+      input.addEventListener('input', () => {
+        input.style.height = 'auto'
+        input.style.height = `${Math.max(32, input.scrollHeight)}px`
+      })
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault()
+          commit()
+        } else if (e.key === 'Escape') {
+          committed = true
+          input.remove()
+          if (textInputRef.current === input) textInputRef.current = null
+        }
+      })
+      input.addEventListener('blur', commit)
+    }, [onStrokeEnd])
 
     // ── Pointer events (native to support passive:false for touch) ────
     useEffect(() => {
@@ -237,16 +358,17 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
       const onDown = (e: MouseEvent | TouchEvent) => {
         if (!visible) return
         const tool = toolRef.current
-        const ctx  = canvas.getContext('2d')!
-        if (tool === 'select') {
+        if (tool === 'text') {
+          const pos = getPos(e)
+          placeTextInput(pos.x, pos.y)
           return
         }
-
         saveUndo()
         isDrawing.current = true
         const pos = getPos(e)
         startX.current = pos.x
         startY.current = pos.y
+        const ctx = canvas.getContext('2d')!
         if (FREE_TOOLS.includes(tool)) {
           ctx.beginPath(); ctx.moveTo(pos.x, pos.y)
         } else {
@@ -268,7 +390,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
           eraserRef.current.style.top  = (src.clientY - rect.top)  + 'px'
         }
 
-        if (['pen','marker','dashed','calligraphy'].includes(tool)) {
+        if (['pen','dashed'].includes(tool)) {
           applyStyle(ctx)
           ctx.lineTo(pos.x, pos.y); ctx.stroke()
           ctx.beginPath(); ctx.moveTo(pos.x, pos.y)
@@ -337,29 +459,26 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         canvas.removeEventListener('touchend',   onUp   as EventListener)
       }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [visible, onStrokeEnd])
+    }, [visible, onStrokeEnd, placeTextInput])
 
     const eraserSize = strokeWidth * 8
-    const isPassThrough = interactive === false || activeTool === 'select'
+    const isPassThrough = interactive === false
 
     // ── Render ─────────────────────────────────────────────────────────
     return (
       <>
-        <div ref={wrapperRef} className="absolute inset-0" style={isPassThrough ? { pointerEvents: 'none' } : undefined}>
-          {/* Canvas */}
-          <canvas
-            ref={canvasRef}
-            style={{
-              position: 'absolute', inset: 0, width: '100%', height: '100%',
-              display: visible ? 'block' : 'none',
-              cursor: activeTool === 'select' ? 'default'
-                    : activeTool === 'eraser' ? 'none'
-                    : activeTool === 'text'   ? 'text'
-                    : 'crosshair',
-              zIndex: 10,
-              pointerEvents: isPassThrough ? 'none' : 'auto',
-            }}
-          />
+      <div ref={wrapperRef} className="absolute inset-0 flex" style={interactive ? undefined : { pointerEvents: 'none' }}>
+        {/* Canvas */}
+        <canvas
+          ref={canvasRef}
+          style={{
+            position: 'absolute', inset: 0, width: '100%', height: '100%',
+            display: visible ? 'block' : 'none',
+            cursor: activeTool === 'eraser' ? 'none' : 'crosshair',
+            zIndex: 10,
+            pointerEvents: interactive === false ? 'none' : 'auto',
+          }}
+        />
 
           {/* Eraser cursor ring */}
           {activeTool === 'eraser' && visible && (
@@ -378,27 +497,28 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, Props>(
         </div>
 
         {/* Right toolbar — only shown when interactive (draw mode) */}
-        {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-14 bg-white border-l border-gray-200 flex flex-col items-center py-2 gap-1 overflow-y-auto z-20">
+        {interactive !== false && <div className="absolute right-0 top-0 bottom-0 w-20 bg-white border-l border-gray-200 flex flex-col items-center py-2 gap-1 overflow-y-auto z-20">
           {/* Tools */}
           {TOOLS.map(t => (
             <button
               key={t.id}
               title={t.tip}
               onClick={() => setActiveTool(t.id)}
-              className={`w-9 h-9 rounded flex items-center justify-center transition-colors ${
+              className={`w-[4.5rem] min-h-12 rounded flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 activeTool === t.id
                   ? 'bg-brand-500 text-white'
                   : 'text-gray-500 hover:bg-brand-50 hover:text-brand-500'
               }`}
             >
               <span className="w-4 h-4">{t.svg}</span>
+              <span className="text-[10px] font-semibold leading-none">{t.tip.split(' ')[0]}</span>
             </button>
           ))}
 
           <div className="w-7 h-px bg-gray-200 my-1" />
 
           {/* Colors — only shown when a drawing tool is active */}
-          {activeTool !== 'select' && (
+          {true && (
             <>
               {COLORS.map(c => (
                 <button
